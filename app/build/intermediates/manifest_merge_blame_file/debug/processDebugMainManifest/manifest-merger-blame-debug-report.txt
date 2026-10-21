@@ -1,0 +1,172 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.spotify.controller"
+4    android:versionCode="1"
+5    android:versionName="1.0.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="26"
+9        android:targetSdkVersion="34" />
+10
+11    <uses-permission android:name="android.permission.INTERNET" />
+11-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:4:5-67
+11-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:4:22-64
+12    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+12-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:5:5-79
+12-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:5:22-76
+13
+14    <permission
+14-->[androidx.core:core:1.13.1] /home/sreedev/.gradle/caches/transforms-4/f7b09ba625631314c561791fd51605d4/transformed/core-1.13.1/AndroidManifest.xml:22:5-24:47
+15        android:name="com.spotify.controller.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+15-->[androidx.core:core:1.13.1] /home/sreedev/.gradle/caches/transforms-4/f7b09ba625631314c561791fd51605d4/transformed/core-1.13.1/AndroidManifest.xml:23:9-81
+16        android:protectionLevel="signature" />
+16-->[androidx.core:core:1.13.1] /home/sreedev/.gradle/caches/transforms-4/f7b09ba625631314c561791fd51605d4/transformed/core-1.13.1/AndroidManifest.xml:24:9-44
+17
+18    <uses-permission android:name="com.spotify.controller.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+18-->[androidx.core:core:1.13.1] /home/sreedev/.gradle/caches/transforms-4/f7b09ba625631314c561791fd51605d4/transformed/core-1.13.1/AndroidManifest.xml:26:5-97
+18-->[androidx.core:core:1.13.1] /home/sreedev/.gradle/caches/transforms-4/f7b09ba625631314c561791fd51605d4/transformed/core-1.13.1/AndroidManifest.xml:26:22-94
+19
+20    <application
+20-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:7:5-36:19
+21        android:name="com.spotify.controller.SpotifyControllerApp"
+21-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:8:9-45
+22        android:allowBackup="true"
+22-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:9:9-35
+23        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+23-->[androidx.core:core:1.13.1] /home/sreedev/.gradle/caches/transforms-4/f7b09ba625631314c561791fd51605d4/transformed/core-1.13.1/AndroidManifest.xml:28:18-86
+24        android:debuggable="true"
+25        android:extractNativeLibs="false"
+26        android:icon="@android:drawable/ic_media_play"
+26-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:10:9-55
+27        android:label="@string/app_name"
+27-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:11:9-41
+28        android:roundIcon="@android:drawable/ic_media_play"
+28-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:12:9-60
+29        android:supportsRtl="true"
+29-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:13:9-35
+30        android:theme="@style/Theme.SpotifyController" >
+30-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:14:9-55
+31        <activity
+31-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:16:9-35:20
+32            android:name="com.spotify.controller.MainActivity"
+32-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:17:13-41
+33            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+33-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:19:13-87
+34            android:exported="true"
+34-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:18:13-36
+35            android:theme="@style/Theme.SpotifyController" >
+35-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:20:13-59
+36            <intent-filter>
+36-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:21:13-24:29
+37                <action android:name="android.intent.action.MAIN" />
+37-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:22:17-69
+37-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:22:25-66
+38
+39                <category android:name="android.intent.category.LAUNCHER" />
+39-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:23:17-77
+39-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:23:27-74
+40            </intent-filter>
+41
+42            <!-- Spotify OAuth Redirect Deep Link -->
+43            <intent-filter>
+43-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:27:13-34:29
+44                <action android:name="android.intent.action.VIEW" />
+44-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:28:17-69
+44-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:28:25-66
+45
+46                <category android:name="android.intent.category.DEFAULT" />
+46-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:29:17-76
+46-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:29:27-73
+47                <category android:name="android.intent.category.BROWSABLE" />
+47-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:30:17-78
+47-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:30:27-75
+48
+49                <data
+49-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:31:17-33:47
+50                    android:host="callback"
+50-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:33:21-44
+51                    android:scheme="spotifycontroller" />
+51-->/home/sreedev/Documents/Projects/spotify-controller/app/src/main/AndroidManifest.xml:32:21-55
+52            </intent-filter>
+53        </activity>
+54        <activity
+54-->[androidx.compose.ui:ui-tooling-android:1.6.8] /home/sreedev/.gradle/caches/transforms-4/1e22207f29863555d97c360dcf22c58c/transformed/ui-tooling-release/AndroidManifest.xml:23:9-25:39
+55            android:name="androidx.compose.ui.tooling.PreviewActivity"
+55-->[androidx.compose.ui:ui-tooling-android:1.6.8] /home/sreedev/.gradle/caches/transforms-4/1e22207f29863555d97c360dcf22c58c/transformed/ui-tooling-release/AndroidManifest.xml:24:13-71
+56            android:exported="true" />
+56-->[androidx.compose.ui:ui-tooling-android:1.6.8] /home/sreedev/.gradle/caches/transforms-4/1e22207f29863555d97c360dcf22c58c/transformed/ui-tooling-release/AndroidManifest.xml:25:13-36
+57        <activity
+57-->[androidx.compose.ui:ui-test-manifest:1.6.8] /home/sreedev/.gradle/caches/transforms-4/2337e8e6082303269c359615d5c5aa6d/transformed/ui-test-manifest-1.6.8/AndroidManifest.xml:23:9-25:39
+58            android:name="androidx.activity.ComponentActivity"
+58-->[androidx.compose.ui:ui-test-manifest:1.6.8] /home/sreedev/.gradle/caches/transforms-4/2337e8e6082303269c359615d5c5aa6d/transformed/ui-test-manifest-1.6.8/AndroidManifest.xml:24:13-63
+59            android:exported="true" />
+59-->[androidx.compose.ui:ui-test-manifest:1.6.8] /home/sreedev/.gradle/caches/transforms-4/2337e8e6082303269c359615d5c5aa6d/transformed/ui-test-manifest-1.6.8/AndroidManifest.xml:25:13-36
+60
+61        <provider
+61-->[androidx.emoji2:emoji2:1.3.0] /home/sreedev/.gradle/caches/transforms-4/c082f26200b0d43c37399e5caf2404a4/transformed/emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
+62            android:name="androidx.startup.InitializationProvider"
+62-->[androidx.emoji2:emoji2:1.3.0] /home/sreedev/.gradle/caches/transforms-4/c082f26200b0d43c37399e5caf2404a4/transformed/emoji2-1.3.0/AndroidManifest.xml:25:13-67
+63            android:authorities="com.spotify.controller.androidx-startup"
+63-->[androidx.emoji2:emoji2:1.3.0] /home/sreedev/.gradle/caches/transforms-4/c082f26200b0d43c37399e5caf2404a4/transformed/emoji2-1.3.0/AndroidManifest.xml:26:13-68
+64            android:exported="false" >
+64-->[androidx.emoji2:emoji2:1.3.0] /home/sreedev/.gradle/caches/transforms-4/c082f26200b0d43c37399e5caf2404a4/transformed/emoji2-1.3.0/AndroidManifest.xml:27:13-37
+65            <meta-data
+65-->[androidx.emoji2:emoji2:1.3.0] /home/sreedev/.gradle/caches/transforms-4/c082f26200b0d43c37399e5caf2404a4/transformed/emoji2-1.3.0/AndroidManifest.xml:29:13-31:52
+66                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+66-->[androidx.emoji2:emoji2:1.3.0] /home/sreedev/.gradle/caches/transforms-4/c082f26200b0d43c37399e5caf2404a4/transformed/emoji2-1.3.0/AndroidManifest.xml:30:17-75
+67                android:value="androidx.startup" />
+67-->[androidx.emoji2:emoji2:1.3.0] /home/sreedev/.gradle/caches/transforms-4/c082f26200b0d43c37399e5caf2404a4/transformed/emoji2-1.3.0/AndroidManifest.xml:31:17-49
+68            <meta-data
+68-->[androidx.lifecycle:lifecycle-process:2.8.3] /home/sreedev/.gradle/caches/transforms-4/fe4ea6da3bca1245abc6f4b61e9205c4/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:29:13-31:52
+69                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+69-->[androidx.lifecycle:lifecycle-process:2.8.3] /home/sreedev/.gradle/caches/transforms-4/fe4ea6da3bca1245abc6f4b61e9205c4/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:30:17-78
+70                android:value="androidx.startup" />
+70-->[androidx.lifecycle:lifecycle-process:2.8.3] /home/sreedev/.gradle/caches/transforms-4/fe4ea6da3bca1245abc6f4b61e9205c4/transformed/lifecycle-process-2.8.3/AndroidManifest.xml:31:17-49
+71            <meta-data
+71-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/sreedev/.gradle/caches/transforms-4/6e95ea5e6e812010f69d47287c9ccebd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:29:13-31:52
+72                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+72-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/sreedev/.gradle/caches/transforms-4/6e95ea5e6e812010f69d47287c9ccebd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:30:17-85
+73                android:value="androidx.startup" />
+73-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/sreedev/.gradle/caches/transforms-4/6e95ea5e6e812010f69d47287c9ccebd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:31:17-49
+74        </provider>
+75
+76        <receiver
+76-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/sreedev/.gradle/caches/transforms-4/6e95ea5e6e812010f69d47287c9ccebd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:34:9-52:20
+77            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+77-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/sreedev/.gradle/caches/transforms-4/6e95ea5e6e812010f69d47287c9ccebd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:35:13-76
+78            android:directBootAware="false"
+78-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/sreedev/.gradle/caches/transforms-4/6e95ea5e6e812010f69d47287c9ccebd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:36:13-44
+79            android:enabled="true"
+79-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/sreedev/.gradle/caches/transforms-4/6e95ea5e6e812010f69d47287c9ccebd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:37:13-35
+80            android:exported="true"
+80-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/sreedev/.gradle/caches/transforms-4/6e95ea5e6e812010f69d47287c9ccebd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:38:13-36
+81            android:permission="android.permission.DUMP" >
+81-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/sreedev/.gradle/caches/transforms-4/6e95ea5e6e812010f69d47287c9ccebd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:39:13-57
+82            <intent-filter>
+82-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/sreedev/.gradle/caches/transforms-4/6e95ea5e6e812010f69d47287c9ccebd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:40:13-42:29
+83                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+83-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/sreedev/.gradle/caches/transforms-4/6e95ea5e6e812010f69d47287c9ccebd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:41:17-91
+83-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/sreedev/.gradle/caches/transforms-4/6e95ea5e6e812010f69d47287c9ccebd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:41:25-88
+84            </intent-filter>
+85            <intent-filter>
+85-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/sreedev/.gradle/caches/transforms-4/6e95ea5e6e812010f69d47287c9ccebd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:43:13-45:29
+86                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+86-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/sreedev/.gradle/caches/transforms-4/6e95ea5e6e812010f69d47287c9ccebd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:44:17-85
+86-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/sreedev/.gradle/caches/transforms-4/6e95ea5e6e812010f69d47287c9ccebd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:44:25-82
+87            </intent-filter>
+88            <intent-filter>
+88-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/sreedev/.gradle/caches/transforms-4/6e95ea5e6e812010f69d47287c9ccebd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:46:13-48:29
+89                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+89-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/sreedev/.gradle/caches/transforms-4/6e95ea5e6e812010f69d47287c9ccebd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:47:17-88
+89-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/sreedev/.gradle/caches/transforms-4/6e95ea5e6e812010f69d47287c9ccebd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:47:25-85
+90            </intent-filter>
+91            <intent-filter>
+91-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/sreedev/.gradle/caches/transforms-4/6e95ea5e6e812010f69d47287c9ccebd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:49:13-51:29
+92                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+92-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/sreedev/.gradle/caches/transforms-4/6e95ea5e6e812010f69d47287c9ccebd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:50:17-95
+92-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/sreedev/.gradle/caches/transforms-4/6e95ea5e6e812010f69d47287c9ccebd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:50:25-92
+93            </intent-filter>
+94        </receiver>
+95    </application>
+96
+97</manifest>

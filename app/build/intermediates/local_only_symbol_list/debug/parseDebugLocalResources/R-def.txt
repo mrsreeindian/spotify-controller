@@ -1,0 +1,28 @@
+R_DEF: Internal format may change without notice
+local
+color background
+color on_surface
+color primary
+color primary_variant
+color surface
+color surface_variant
+string access_token_label
+string app_name
+string client_id_label
+string client_secret_label
+string connect_button
+string connect_spotify
+string lyrics_title
+string no_lyrics_found
+string no_track_playing
+string play_something_on_spotify
+string searching_lyrics
+string setup_guide_title
+string setup_step_1
+string setup_step_2
+string setup_step_3
+string setup_step_4
+string setup_subtitle
+string setup_title
+string tap_for_lyrics
+style Theme.SpotifyController

@@ -7,9 +7,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.VolumeDown
-import androidx.compose.material.icons.rounded.VolumeMute
-import androidx.compose.material.icons.rounded.VolumeUp
+import androidx.compose.material.icons.automirrored.rounded.VolumeDown
+import androidx.compose.material.icons.automirrored.rounded.VolumeMute
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,9 +41,9 @@ fun VolumeBar(
     val currentVolume = if (isDragging) dragVolume.toInt() else volumePercent
 
     val volumeIcon = when {
-        currentVolume == 0 -> Icons.Rounded.VolumeMute
-        currentVolume < 50 -> Icons.Rounded.VolumeDown
-        else -> Icons.Rounded.VolumeUp
+        currentVolume == 0 -> Icons.AutoMirrored.Rounded.VolumeMute
+        currentVolume < 50 -> Icons.AutoMirrored.Rounded.VolumeDown
+        else -> Icons.AutoMirrored.Rounded.VolumeUp
     }
 
     Row(
@@ -100,7 +100,7 @@ fun VolumeBar(
             modifier = Modifier.size(36.dp)
         ) {
             Icon(
-                imageVector = Icons.Rounded.VolumeUp,
+                imageVector = Icons.AutoMirrored.Rounded.VolumeUp,
                 contentDescription = "Max Volume",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 modifier = Modifier.size(20.dp)

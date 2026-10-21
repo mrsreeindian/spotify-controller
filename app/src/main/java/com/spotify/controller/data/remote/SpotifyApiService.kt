@@ -99,7 +99,8 @@ class SpotifyApiService(private val client: OkHttpClient) {
                 val albumName = albumObj?.optString("name", "Unknown Album") ?: "Unknown Album"
                 val imagesArr = albumObj?.optJSONArray("images")
                 val albumArtUrl = if (imagesArr != null && imagesArr.length() > 0) {
-                    imagesArr.getJSONObject(0).optString("url", null)
+                    val imgObj = imagesArr.getJSONObject(0)
+                    if (imgObj.isNull("url")) null else imgObj.optString("url")
                 } else null
 
                 // Check saved/liked state

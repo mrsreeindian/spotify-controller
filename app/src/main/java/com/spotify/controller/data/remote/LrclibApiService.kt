@@ -115,8 +115,8 @@ class LrclibApiService(private val client: OkHttpClient) {
             albumName = json.optString("albumName", ""),
             duration = json.optDouble("duration", 0.0),
             instrumental = json.optBoolean("instrumental", false),
-            plainLyrics = json.optString("plainLyrics", null),
-            syncedLyrics = json.optString("syncedLyrics", null)
+            plainLyrics = if (json.isNull("plainLyrics")) null else json.optString("plainLyrics"),
+            syncedLyrics = if (json.isNull("syncedLyrics")) null else json.optString("syncedLyrics")
         )
     }
 
