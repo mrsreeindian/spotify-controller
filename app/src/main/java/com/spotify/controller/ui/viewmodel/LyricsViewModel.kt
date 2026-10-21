@@ -103,7 +103,8 @@ class LyricsViewModel(
             lines = parsed,
             isSynced = true,
             provider = "Spicy Lyrics Engine",
-            hasWordSync = true
+            hasWordSync = true,
+            hasExactWordSync = true
         )
     }
 }

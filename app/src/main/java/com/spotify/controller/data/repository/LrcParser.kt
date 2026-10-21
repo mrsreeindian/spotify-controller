@@ -10,7 +10,9 @@ object LrcParser {
     private val WORD_TIMESTAMP_REGEX = Pattern.compile("""<(\d{2}):(\d{2})(?:\.(\d{1,3}))?>([^<]+)""")
 
     /**
-     * Parses standard or enhanced LRC lyrics text into structured LyricLine objects.
+     * Parses standard or enhanced LRC lyrics into structured LyricLine objects.
+     * Extracts exact syllable/word timings when available (<mm:ss.xx>), or provides
+     * intelligent phoneme cadence timings for standard line-synced lyrics.
      */
     fun parse(lrcContent: String): List<LyricLine> {
         val lines = lrcContent.lines()
@@ -35,14 +37,20 @@ object LrcParser {
                 val rawLyricText = trimmed.substring(matcher.end()).trim()
 
                 // Check for word-level sync tags e.g. <00:12.30>word
-                val words = parseWordTimings(rawLyricText)
-                val cleanText = if (words.isNotEmpty()) {
-                    words.joinToString(" ") { it.word }
+                val exactWords = parseWordTimings(rawLyricText)
+                val cleanText = if (exactWords.isNotEmpty()) {
+                    exactWords.joinToString(" ") { it.word }
                 } else {
                     rawLyricText
                 }
 
-                rawEntries.add(RawLineEntry(startTimeMs, cleanText, words))
+                rawEntries.add(
+                    RawLineEntry(
+                        startTimeMs = startTimeMs,
+                        text = cleanText,
+                        exactWords = exactWords
+                    )
+                )
             }
         }
 
@@ -51,15 +59,45 @@ object LrcParser {
         val result = mutableListOf<LyricLine>()
         for (i in rawEntries.indices) {
             val current = rawEntries[i]
-            // If line is empty (e.g. instrumental pause marker [01:23.45]), skip adding as a line
-            // but use it to close the previous line
+            // Skip empty/instrumental marker lines, but use them to close previous lines
             if (current.text.isBlank()) continue
 
-            // Find next non-empty entry or next entry timestamp
+            // Determine line end timestamp
             val nextTimestamp = if (i + 1 < rawEntries.size) {
                 rawEntries[i + 1].startTimeMs
             } else {
                 current.startTimeMs + 4500L
+            }
+
+            // Word-by-word timing resolution
+            val words = if (current.exactWords.isNotEmpty()) {
+                val list = current.exactWords.toMutableList()
+                // Ensure last word runs until near line end
+                if (list.isNotEmpty() && nextTimestamp > list.last().startTimeMs) {
+                    val last = list.last()
+                    val lastEnd = (nextTimestamp - 150L).coerceAtLeast(last.startTimeMs + 200L)
+                    list[list.lastIndex] = last.copy(endTimeMs = lastEnd)
+                }
+                list
+            } else {
+                // Generate cadence-based word timings for standard LRC lines
+                WordTimingEstimator.estimate(current.text, current.startTimeMs, nextTimestamp)
+            }
+
+            // Insert lead-in dots for vocal breaks >= 4 seconds
+            if (result.isNotEmpty()) {
+                val prevEnd = result.last().endTimeMs
+                if (current.startTimeMs - prevEnd >= 4000L) {
+                    result.add(
+                        LyricLine(
+                            id = lineIndex++,
+                            startTimeMs = prevEnd + 300L,
+                            endTimeMs = current.startTimeMs - 200L,
+                            text = "• • •",
+                            isDotLine = true
+                        )
+                    )
+                }
             }
 
             result.add(
@@ -68,7 +106,7 @@ object LrcParser {
                     startTimeMs = current.startTimeMs,
                     endTimeMs = nextTimestamp,
                     text = current.text,
-                    words = current.words
+                    words = words
                 )
             )
         }
@@ -113,6 +151,6 @@ object LrcParser {
     private data class RawLineEntry(
         val startTimeMs: Long,
         val text: String,
-        val words: List<WordTiming>
+        val exactWords: List<WordTiming>
     )
 }

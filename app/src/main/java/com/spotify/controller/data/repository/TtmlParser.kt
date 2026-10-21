@@ -3,13 +3,14 @@ package com.spotify.controller.data.repository
 import com.spotify.controller.data.model.LyricLine
 import com.spotify.controller.data.model.WordTiming
 import org.w3c.dom.Element
+import org.w3c.dom.Node
 import org.xml.sax.InputSource
 import java.io.StringReader
 import javax.xml.parsers.DocumentBuilderFactory
 
 /**
- * Port of Spikerko/spicy-lyrics TTML (Timed Text Markup Language) parser.
- * Supports Apple Music / Musixmatch / Spicy Lyrics TTML format with syllable/word level timings.
+ * Timed Text Markup Language (TTML) parser supporting Apple Music / Musixmatch / Spicy Lyrics format.
+ * Accurately extracts syllable & word-level timing spans, with intelligent cadence fallback for plain lines.
  */
 object TtmlParser {
 
@@ -30,22 +31,34 @@ object TtmlParser {
                 var pEnd = parseTimeToMs(p.getAttribute("end"))
 
                 val words = mutableListOf<WordTiming>()
-                val spanList = p.getElementsByTagName("span")
+                val allSpans = p.getElementsByTagName("span")
 
-                if (spanList.length > 0) {
-                    for (j in 0 until spanList.length) {
-                        val span = spanList.item(j) as? Element ?: continue
-                        val wordText = span.textContent?.trim().orEmpty()
+                // Filter to leaf spans (spans that don't contain other spans)
+                val leafSpans = mutableListOf<Element>()
+                for (j in 0 until allSpans.length) {
+                    val s = allSpans.item(j) as? Element ?: continue
+                    if (s.getElementsByTagName("span").length == 0) {
+                        leafSpans.add(s)
+                    }
+                }
+
+                if (leafSpans.isNotEmpty()) {
+                    for (span in leafSpans) {
+                        val rawText = span.textContent ?: ""
+                        val wordText = rawText.trim()
                         if (wordText.isNotEmpty()) {
                             val spanBegin = parseTimeToMs(span.getAttribute("begin"))
                             val spanEnd = parseTimeToMs(span.getAttribute("end"))
                             val isBg = span.getAttribute("ttm:role") == "x-bg"
 
+                            val start = if (spanBegin > 0L) spanBegin else pBegin
+                            val end = if (spanEnd > start) spanEnd else (if (pEnd > start) pEnd else start + 400L)
+
                             words.add(
                                 WordTiming(
                                     word = wordText,
-                                    startTimeMs = if (spanBegin > 0) spanBegin else pBegin,
-                                    endTimeMs = if (spanEnd > 0) spanEnd else (if (pEnd > 0) pEnd else pBegin + 500L),
+                                    startTimeMs = start,
+                                    endTimeMs = end,
                                     isBackground = isBg
                                 )
                             )
@@ -60,8 +73,20 @@ object TtmlParser {
                 }
 
                 if (fullText.isNotBlank()) {
-                    if (pEnd <= pBegin && words.isNotEmpty()) {
-                        pEnd = words.last().endTimeMs
+                    if (pEnd <= pBegin) {
+                        pEnd = if (words.isNotEmpty()) words.last().endTimeMs else pBegin + 4000L
+                    }
+
+                    // Fallback to intelligent cadence estimator if line has no inner spans
+                    val finalWords = if (words.isEmpty()) {
+                        WordTimingEstimator.estimate(fullText, pBegin, pEnd)
+                    } else {
+                        // Ensure last word closes with the line
+                        if (words.size > 1 && words.last().endTimeMs < pEnd - 200L) {
+                            val last = words.last()
+                            words[words.lastIndex] = last.copy(endTimeMs = pEnd)
+                        }
+                        words
                     }
 
                     // Insert lead-in dots for instrumental breaks >= 4s (Spicy Lyrics feature)
@@ -71,8 +96,8 @@ object TtmlParser {
                             lines.add(
                                 LyricLine(
                                     id = lineIndex++,
-                                    startTimeMs = prevEnd + 400L,
-                                    endTimeMs = pBegin - 300L,
+                                    startTimeMs = prevEnd + 300L,
+                                    endTimeMs = pBegin - 200L,
                                     text = "• • •",
                                     isDotLine = true
                                 )
@@ -84,15 +109,15 @@ object TtmlParser {
                         LyricLine(
                             id = lineIndex++,
                             startTimeMs = pBegin,
-                            endTimeMs = if (pEnd > pBegin) pEnd else pBegin + 4000L,
+                            endTimeMs = pEnd,
                             text = fullText,
-                            words = words
+                            words = finalWords
                         )
                     )
                 }
             }
         } catch (e: Exception) {
-            // Return any lines parsed so far
+            // Return any lines successfully parsed
         }
 
         return lines.sortedBy { it.startTimeMs }

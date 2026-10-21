@@ -2,9 +2,7 @@ package com.spotify.controller.ui.components
 
 import android.os.SystemClock
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
@@ -64,11 +62,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.spotify.controller.data.model.LyricLine
@@ -77,15 +82,40 @@ import com.spotify.controller.data.model.WordTiming
 import com.spotify.controller.ui.theme.LocalAlbumArtColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlin.math.PI
+import kotlin.math.sin
+
+/**
+ * Hardware-accelerated horizontal scissoring shape for buttery 60-120fps progressive karaoke text wipes.
+ */
+class HorizontalProgressShape(private val fraction: Float) : Shape {
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density
+    ): Outline {
+        val progress = fraction.coerceIn(0f, 1f)
+        return Outline.Rectangle(
+            Rect(
+                left = 0f,
+                top = 0f,
+                right = size.width * progress,
+                bottom = size.height
+            )
+        )
+    }
+}
 
 /**
  * Port of Spikerko/spicy-lyrics for Android.
  * Features:
- * - Real-time continuous 40ms client-side ticker (25fps)
- * - Syllable/word-by-word progressive karaoke highlighting with spring scale & text bloom
+ * - 60fps continuous millisecond client ticker
+ * - Word-by-word progressive karaoke wipe (Apple Music & Spicy Lyrics style)
+ * - Kinetic spring bounce & sinusoidal vertical breath lift per singing syllable
+ * - Glowing bloom on active vocal syllables
+ * - Tap any word or line to seek Spotify playback directly
+ * - Lead-in vocal interlude bouncing dots (• • •)
  * - Auto-centering auto-scroll with manual drag override & "Sync" button
- * - Animated vocal lead-in interlude bouncing dots (• • •)
- * - Tap-to-seek to any lyric line or word
  */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -106,7 +136,7 @@ fun SpicyLyricsView(
     val albumColors = LocalAlbumArtColors.current
     val listState = rememberLazyListState()
 
-    // Real-time client-side millisecond ticker for ultra-smooth 25fps lyric synchronization
+    // 60fps real-time client-side millisecond ticker for ultra-smooth progressive character wipe
     var liveProgressMs by remember { mutableLongStateOf(progressMs) }
     LaunchedEffect(isPlaying, progressMs, lastSyncTimestamp) {
         liveProgressMs = progressMs
@@ -115,7 +145,7 @@ fun SpicyLyricsView(
                 val elapsedSinceSync = SystemClock.elapsedRealtime() - lastSyncTimestamp
                 val current = (progressMs + elapsedSinceSync).coerceIn(0L, durationMs.coerceAtLeast(1L))
                 liveProgressMs = current
-                delay(40L)
+                delay(16L) // 60fps refresh
             }
         }
     }
@@ -201,7 +231,7 @@ fun SpicyLyricsView(
                                     color = albumColors.tonalPrimary.copy(alpha = 0.25f)
                                 ) {
                                     Text(
-                                        text = "KARAOKE",
+                                        text = if (lyrics.hasExactWordSync) "STUDIO KARAOKE" else "WORD SYNC",
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = albumColors.tonalPrimary,
@@ -325,7 +355,8 @@ fun SpicyLyricsView(
                                         isActive = isActive,
                                         currentPositionMs = liveProgressMs,
                                         glowColor = albumColors.tonalPrimary,
-                                        onLineClick = { onSeekTo(line.startTimeMs) }
+                                        onLineClick = { onSeekTo(line.startTimeMs) },
+                                        onWordClick = { wordStartMs -> onSeekTo(wordStartMs) }
                                     )
                                 }
                             }
@@ -375,8 +406,7 @@ fun SpicyLyricsView(
 }
 
 /**
- * Renders an individual lyric line with syllable word-by-word karaoke highlighting
- * or line-level spring scale & bloom.
+ * Renders an individual lyric line with uniform word layout, preserving geometry across active/inactive transitions.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -385,10 +415,11 @@ fun SpicyLyricLine(
     isActive: Boolean,
     currentPositionMs: Long,
     glowColor: Color,
-    onLineClick: () -> Unit
+    onLineClick: () -> Unit,
+    onWordClick: (Long) -> Unit
 ) {
     val lineScale by animateFloatAsState(
-        targetValue = if (isActive) 1.05f else 0.97f,
+        targetValue = if (isActive) 1.04f else 0.96f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
@@ -398,7 +429,7 @@ fun SpicyLyricLine(
 
     val lineAlpha by animateFloatAsState(
         targetValue = if (isActive) 1.0f else 0.32f,
-        animationSpec = tween(durationMillis = 220),
+        animationSpec = tween(durationMillis = 200),
         label = "lineAlpha"
     )
 
@@ -414,33 +445,35 @@ fun SpicyLyricLine(
             )
             .padding(vertical = 4.dp, horizontal = 8.dp)
     ) {
-        if (line.words.isNotEmpty() && isActive) {
-            // Word-by-word syllable karaoke rendering
+        if (line.words.isNotEmpty()) {
+            // Word-by-word progressive karaoke rendering
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
                 line.words.forEach { wordTiming ->
                     SpicyWordItem(
                         wordTiming = wordTiming,
                         currentPositionMs = currentPositionMs,
-                        glowColor = glowColor
+                        isLineActive = isActive,
+                        glowColor = glowColor,
+                        onWordClick = { onWordClick(wordTiming.startTimeMs) }
                     )
                 }
             }
         } else {
-            // Standard line-level text
+            // Fallback for empty word list
             Text(
                 text = line.text,
-                fontSize = if (isActive) 26.sp else 21.sp,
+                fontSize = 25.sp,
                 fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.SemiBold,
                 color = if (isActive) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = if (isActive) 34.sp else 29.sp,
+                lineHeight = 33.sp,
                 style = if (isActive) {
                     TextStyle(
                         shadow = Shadow(
-                            color = Color.White.copy(alpha = 0.5f),
+                            color = Color.White.copy(alpha = 0.6f),
                             offset = Offset.Zero,
                             blurRadius = 14f
                         )
@@ -452,19 +485,25 @@ fun SpicyLyricLine(
 }
 
 /**
- * Renders an individual word / syllable with spring scale and progressive karaoke fill
+ * Renders an individual word / syllable with progressive karaoke wipe, spring bounce,
+ * sinusoidal breath lift, and blooming text shadow.
  */
 @Composable
 fun SpicyWordItem(
     wordTiming: WordTiming,
     currentPositionMs: Long,
-    glowColor: Color
+    isLineActive: Boolean,
+    glowColor: Color,
+    onWordClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val isWordActive = wordTiming.isActiveAt(currentPositionMs)
-    val isWordPast = wordTiming.isPast(currentPositionMs)
+    val isWordPast = currentPositionMs >= wordTiming.endTimeMs
+    val isWordActive = isLineActive && (currentPositionMs in wordTiming.startTimeMs until wordTiming.endTimeMs)
+    val progress = wordTiming.progress(currentPositionMs)
 
+    // Spring scale: zooms smoothly to 1.08x while actively being sung
     val wordScale by animateFloatAsState(
-        targetValue = if (isWordActive) 1.12f else 1.0f,
+        targetValue = if (isWordActive) 1.08f else 1.0f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium
@@ -472,33 +511,66 @@ fun SpicyWordItem(
         label = "wordScale"
     )
 
-    val wordAlpha by animateFloatAsState(
-        targetValue = when {
-            isWordActive || isWordPast -> 1.0f
-            else -> 0.40f
-        },
-        animationSpec = tween(durationMillis = 150),
-        label = "wordAlpha"
-    )
+    // Sinusoidal breath lift (-2.5dp) during vocal delivery
+    val verticalLift = if (isWordActive) {
+        (-2.5f * sin(progress * PI.toFloat())).dp
+    } else 0.dp
 
-    Text(
-        text = wordTiming.word,
-        fontSize = 26.sp,
-        fontWeight = FontWeight.ExtraBold,
-        color = Color.White,
-        modifier = Modifier
+    // Dynamic bloom glow radius tracking progress
+    val glowBlur = if (isWordActive) {
+        14f + (6f * sin(progress * PI.toFloat()))
+    } else 0f
+
+    Box(
+        modifier = modifier
+            .offset(y = verticalLift)
             .scale(wordScale)
-            .alpha(wordAlpha),
-        style = if (isWordActive) {
-            TextStyle(
-                shadow = Shadow(
-                    color = Color.White.copy(alpha = 0.85f),
-                    offset = Offset.Zero,
-                    blurRadius = 16f
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onWordClick
+            ),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        // Layer 1: Base translucent un-sung text
+        Text(
+            text = wordTiming.word,
+            fontSize = 25.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White.copy(alpha = if (isLineActive) 0.35f else 0.28f),
+            lineHeight = 33.sp
+        )
+
+        // Layer 2: Illuminated active/sung text with hardware-accelerated progressive horizontal wipe
+        if (isWordPast || (isWordActive && progress > 0.005f)) {
+            val fillFraction = if (isWordPast) 1.0f else progress
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .graphicsLayer {
+                        clip = true
+                        shape = HorizontalProgressShape(fillFraction)
+                    }
+            ) {
+                Text(
+                    text = wordTiming.word,
+                    fontSize = 25.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White,
+                    lineHeight = 33.sp,
+                    style = if (isWordActive) {
+                        TextStyle(
+                            shadow = Shadow(
+                                color = Color.White.copy(alpha = 0.92f),
+                                offset = Offset.Zero,
+                                blurRadius = glowBlur
+                            )
+                        )
+                    } else TextStyle.Default
                 )
-            )
-        } else TextStyle.Default
-    )
+            }
+        }
+    }
 }
 
 /**

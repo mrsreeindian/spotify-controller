@@ -48,7 +48,9 @@ class LyricsRepository(
             )
 
             if (response != null) {
-                val parsedLines = parseRawLyrics(response.syncedLyrics)
+                val rawLyrics = response.syncedLyrics
+                val isExact = !rawLyrics.isNullOrBlank() && (rawLyrics.contains("<span") || rawLyrics.contains("<00:"))
+                val parsedLines = parseRawLyrics(rawLyrics)
                 val hasWords = parsedLines.any { it.words.isNotEmpty() }
 
                 val lyrics = Lyrics(
@@ -59,7 +61,8 @@ class LyricsRepository(
                     isSynced = parsedLines.isNotEmpty(),
                     plainLyrics = response.plainLyrics,
                     provider = "Spicy Lyrics Engine",
-                    hasWordSync = hasWords
+                    hasWordSync = hasWords,
+                    hasExactWordSync = isExact
                 )
 
                 cache[track.id] = lyrics
@@ -113,6 +116,7 @@ class LyricsRepository(
             val dataStr = resultObj.optString("data", "")
             if (dataStr.isBlank()) return null
 
+            val isExact = dataStr.contains("<span") || dataStr.contains("<00:")
             val lines = parseRawLyrics(dataStr)
             if (lines.isNotEmpty()) {
                 val hasWords = lines.any { it.words.isNotEmpty() }
@@ -123,7 +127,8 @@ class LyricsRepository(
                     lines = lines,
                     isSynced = true,
                     provider = "Spicy Lyrics API",
-                    hasWordSync = hasWords
+                    hasWordSync = hasWords,
+                    hasExactWordSync = isExact
                 )
             }
         } catch (e: Exception) {

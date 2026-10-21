@@ -11,7 +11,8 @@ data class Lyrics(
     val isSynced: Boolean = false,
     val plainLyrics: String? = null,
     val provider: String = "Spicy Lyrics Engine",
-    val hasWordSync: Boolean = false
+    val hasWordSync: Boolean = false,
+    val hasExactWordSync: Boolean = false
 ) {
     fun getActiveLineIndex(currentPositionMs: Long): Int {
         if (lines.isEmpty()) return -1
