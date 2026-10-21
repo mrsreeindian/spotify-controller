@@ -154,6 +154,8 @@ fun SpicyLyricsView(
     // Detect user manual scrolling vs auto-scrolling
     var userScrolled by remember { mutableStateOf(false) }
     var lastUserScrollTime by remember { mutableLongStateOf(0L) }
+    var manualSyncTrigger by remember { mutableLongStateOf(0L) }
+    var hasInitiallyScrolled by remember { mutableStateOf(false) }
 
     LaunchedEffect(listState.isScrollInProgress) {
         if (listState.isScrollInProgress) {
@@ -162,21 +164,41 @@ fun SpicyLyricsView(
         }
     }
 
-    // Reset user scroll after 2.5 seconds of inactivity
-    LaunchedEffect(userScrolled, lastUserScrollTime) {
-        if (userScrolled) {
+    // Reset user scroll after 2.5 seconds of inactivity ONLY IF music is playing
+    LaunchedEffect(userScrolled, lastUserScrollTime, isPlaying) {
+        if (userScrolled && isPlaying) {
             delay(2500L)
             userScrolled = false
         }
     }
 
-    // Auto-scroll to center the active line
-    LaunchedEffect(activeIndex, userScrolled) {
-        if (!userScrolled && activeIndex in lyrics.lines.indices) {
+    // Initial scroll to active line when track or lyrics load
+    LaunchedEffect(lyrics.trackId) {
+        hasInitiallyScrolled = false
+    }
+
+    LaunchedEffect(lyrics, activeIndex) {
+        if (!hasInitiallyScrolled && activeIndex in lyrics.lines.indices) {
+            hasInitiallyScrolled = true
+            listState.scrollToItem(
+                index = activeIndex,
+                scrollOffset = 0
+            )
+        }
+    }
+
+    // Auto-scroll to center the active line:
+    // Only auto-scrolls while music is playing, or when the user explicitly triggers a sync/seek!
+    LaunchedEffect(activeIndex, userScrolled, isPlaying, manualSyncTrigger) {
+        val shouldScroll = (isPlaying && !userScrolled) || manualSyncTrigger > 0L
+        if (shouldScroll && activeIndex in lyrics.lines.indices) {
             listState.animateScrollToItem(
                 index = activeIndex,
                 scrollOffset = 0
             )
+            if (manualSyncTrigger > 0L) {
+                manualSyncTrigger = 0L
+            }
         }
     }
 
@@ -345,8 +367,16 @@ fun SpicyLyricsView(
                                         line = line,
                                         isActive = isActive,
                                         currentPositionMs = if (isActive) liveProgressMs else 0L,
-                                        onLineClick = { onSeekTo(line.startTimeMs) },
-                                        onWordClick = { wordStartMs -> onSeekTo(wordStartMs) }
+                                        onLineClick = {
+                                            userScrolled = false
+                                            manualSyncTrigger = SystemClock.elapsedRealtime()
+                                            onSeekTo(line.startTimeMs)
+                                        },
+                                        onWordClick = { wordStartMs ->
+                                            userScrolled = false
+                                            manualSyncTrigger = SystemClock.elapsedRealtime()
+                                            onSeekTo(wordStartMs)
+                                        }
                                     )
                                 }
                             }
@@ -366,7 +396,10 @@ fun SpicyLyricsView(
                 .padding(bottom = 20.dp)
         ) {
             Surface(
-                onClick = { userScrolled = false },
+                onClick = {
+                    userScrolled = false
+                    manualSyncTrigger = SystemClock.elapsedRealtime()
+                },
                 shape = RoundedCornerShape(20.dp),
                 color = albumColors.tonalPrimary,
                 contentColor = albumColors.tonalOnPrimary,
