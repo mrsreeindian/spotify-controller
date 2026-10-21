@@ -140,8 +140,10 @@ fun SpicyLyricsView(
         }
     }
 
-    val activeIndex = remember(lyrics, liveProgressMs) {
-        lyrics.getActiveLineIndex(liveProgressMs)
+    val activeIndex by remember(lyrics, liveProgressMs) {
+        androidx.compose.runtime.derivedStateOf {
+            lyrics.getActiveLineIndex(liveProgressMs)
+        }
     }
 
     // Detect user manual scrolling vs auto-scrolling
@@ -337,7 +339,7 @@ fun SpicyLyricsView(
                                     SpicyLyricLine(
                                         line = line,
                                         isActive = isActive,
-                                        currentPositionMs = liveProgressMs,
+                                        currentPositionMs = if (isActive) liveProgressMs else 0L,
                                         onLineClick = { onSeekTo(line.startTimeMs) },
                                         onWordClick = { wordStartMs -> onSeekTo(wordStartMs) }
                                     )
