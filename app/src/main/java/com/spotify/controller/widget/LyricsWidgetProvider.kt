@@ -31,7 +31,7 @@ import kotlinx.coroutines.withContext
  * Resizable Home Screen Widget that displays real-time synchronized lyrics,
  * responsive multi-line lyrics stream, album art, and Spotify playback controls.
  */
-class LyricsWidgetProvider : AppWidgetProvider() {
+open class LyricsWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(
         context: Context,
@@ -143,13 +143,16 @@ class LyricsWidgetProvider : AppWidgetProvider() {
 
         fun updateAllWidgets(context: Context) {
             val appWidgetManager = AppWidgetManager.getInstance(context) ?: return
-            val component = ComponentName(context, LyricsWidgetProvider::class.java)
-            val appWidgetIds = appWidgetManager.getAppWidgetIds(component)
-            if (appWidgetIds.isEmpty()) return
+            val providers = listOf(
+                ComponentName(context, LyricsWidgetProvider::class.java),
+                ComponentName(context, Lyrics4x4WidgetProvider::class.java)
+            )
+            val allIds = providers.flatMap { appWidgetManager.getAppWidgetIds(it).toList() }
+            if (allIds.isEmpty()) return
 
             val app = context.applicationContext as? SpotifyControllerApp ?: return
             app.appScope.launch {
-                for (id in appWidgetIds) {
+                for (id in allIds) {
                     updateAppWidget(context, appWidgetManager, id)
                 }
             }
@@ -165,9 +168,15 @@ class LyricsWidgetProvider : AppWidgetProvider() {
             val playbackState = app.spotifyRepository.playbackState.value
             val track = playbackState.track
 
-            // Determine widget dimensions
+            // Determine widget dimensions and provider type
             val widgetOptions = options ?: appWidgetManager.getAppWidgetOptions(appWidgetId)
-            val minHeightDp = widgetOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 120)
+            val is4x4Provider = try {
+                appWidgetManager.getAppWidgetInfo(appWidgetId)?.provider?.className == Lyrics4x4WidgetProvider::class.java.name
+            } catch (e: Exception) {
+                false
+            }
+            val defaultHeight = if (is4x4Provider) 260 else 120
+            val minHeightDp = widgetOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, defaultHeight)
 
             // Calculate current live position
             val currentPos = if (playbackState.isPlaying && playbackState.lastSyncTimestamp > 0L) {
@@ -181,11 +190,16 @@ class LyricsWidgetProvider : AppWidgetProvider() {
                 lyrics.getActiveLineIndex(currentPos)
             } else -1
 
-            // Choose layout based on height
+            // Choose layout based on height and provider tier:
+            // < 100dp: Compact (1 row)
+            // 100dp..175dp: Standard (2 rows)
+            // 176dp..239dp: Expanded (3 rows)
+            // >= 240dp (or 4x4 widget): Large 4x4 (4 rows, 7-line lyrics showcase)
             val remoteViews = when {
                 minHeightDp < 100 -> buildCompactViews(context, playbackState, lyrics, activeIndex)
-                minHeightDp in 100..185 -> buildStandardViews(context, playbackState, lyrics, activeIndex)
-                else -> buildExpandedViews(context, playbackState, lyrics, activeIndex)
+                minHeightDp in 100..175 -> buildStandardViews(context, playbackState, lyrics, activeIndex)
+                minHeightDp in 176..239 -> buildExpandedViews(context, playbackState, lyrics, activeIndex)
+                else -> buildLarge4x4Views(context, playbackState, lyrics, activeIndex)
             }
 
             appWidgetManager.updateAppWidget(appWidgetId, remoteViews)
@@ -318,6 +332,66 @@ class LyricsWidgetProvider : AppWidgetProvider() {
             attachControlIntents(context, views, R.id.widget_exp_btn_play_pause, R.id.widget_exp_btn_next, R.id.widget_exp_btn_prev)
             attachLyricsIntent(context, views, R.id.widget_exp_lyrics_container)
             attachAppIntent(context, views, R.id.widget_exp_track_info)
+
+            return views
+        }
+
+        private fun buildLarge4x4Views(
+            context: Context,
+            playbackState: PlaybackState,
+            lyrics: Lyrics,
+            activeIndex: Int
+        ): RemoteViews {
+            val views = RemoteViews(context.packageName, R.layout.widget_lyrics_large)
+            val track = playbackState.track
+
+            views.setTextViewText(R.id.widget_large_track_title, track?.name ?: "No Track Playing")
+            views.setTextViewText(R.id.widget_large_artist_name, track?.artistNames ?: "Spotify Controller")
+            views.setTextViewText(R.id.widget_large_album_name, track?.albumName ?: "")
+
+            val playIcon = if (playbackState.isPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play
+            views.setImageViewResource(R.id.widget_large_btn_play_pause, playIcon)
+
+            // 7 lines: -3, -2, -1, active, +1, +2, +3
+            val p3 = if (activeIndex >= 3 && activeIndex - 3 in lyrics.lines.indices) lyrics.lines[activeIndex - 3].text else ""
+            val p2 = if (activeIndex >= 2 && activeIndex - 2 in lyrics.lines.indices) lyrics.lines[activeIndex - 2].text else ""
+            val p1 = if (activeIndex >= 1 && activeIndex - 1 in lyrics.lines.indices) lyrics.lines[activeIndex - 1].text else ""
+            val act = when {
+                track == null -> "Connect Spotify to start"
+                lyrics.lines.isEmpty() -> if (!lyrics.plainLyrics.isNullOrBlank()) lyrics.plainLyrics else "Searching lyrics..."
+                activeIndex in lyrics.lines.indices -> lyrics.lines[activeIndex].text
+                else -> "• • •"
+            }
+            val n1 = if (activeIndex >= 0 && activeIndex + 1 in lyrics.lines.indices) lyrics.lines[activeIndex + 1].text else ""
+            val n2 = if (activeIndex >= 0 && activeIndex + 2 in lyrics.lines.indices) lyrics.lines[activeIndex + 2].text else ""
+            val n3 = if (activeIndex >= 0 && activeIndex + 3 in lyrics.lines.indices) lyrics.lines[activeIndex + 3].text else ""
+
+            views.setTextViewText(R.id.widget_large_lyric_prev_3, p3)
+            views.setTextViewText(R.id.widget_large_lyric_prev_2, p2)
+            views.setTextViewText(R.id.widget_large_lyric_prev_1, p1)
+            views.setTextViewText(R.id.widget_large_lyric_active, act)
+            views.setTextViewText(R.id.widget_large_lyric_next_1, n1)
+            views.setTextViewText(R.id.widget_large_lyric_next_2, n2)
+            views.setTextViewText(R.id.widget_large_lyric_next_3, n3)
+
+            val statusText = if (playbackState.isPlaying) "Playing • Live Sync" else "Paused"
+            views.setTextViewText(R.id.widget_large_status, statusText)
+
+            if (cachedAlbumArt != null) {
+                views.setImageViewBitmap(R.id.widget_large_album_art, cachedAlbumArt)
+            } else {
+                views.setImageViewResource(R.id.widget_large_album_art, R.drawable.widget_album_art_placeholder)
+            }
+
+            attachControlIntents(
+                context,
+                views,
+                R.id.widget_large_btn_play_pause,
+                R.id.widget_large_btn_next,
+                R.id.widget_large_btn_prev
+            )
+            attachLyricsIntent(context, views, R.id.widget_large_lyrics_container)
+            attachAppIntent(context, views, R.id.widget_large_track_info)
 
             return views
         }

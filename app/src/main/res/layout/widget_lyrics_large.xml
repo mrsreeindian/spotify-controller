@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Header: 4x4 Metadata & Full Controls -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@+id/widget_large_album_art"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:scaleType="centerCrop"
+            android:src="@drawable/widget_album_art_placeholder" />
+
+        <LinearLayout
+            android:id="@+id/widget_large_track_info"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/widget_large_track_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="No Track Playing"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_large_artist_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Spotify Controller"
+                android:textColor="#B0B0C4"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/widget_large_album_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text=""
+                android:textColor="#707086"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <!-- Playback Controls -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/widget_large_btn_prev"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:background="@drawable/widget_btn_bg"
+                android:contentDescription="Previous Track"
+                android:padding="8dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_widget_skip_previous" />
+
+            <ImageButton
+                android:id="@+id/widget_large_btn_play_pause"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/widget_btn_bg"
+                android:contentDescription="Play or Pause"
+                android:padding="10dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_widget_play" />
+
+            <ImageButton
+                android:id="@+id/widget_large_btn_next"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:background="@drawable/widget_btn_bg"
+                android:contentDescription="Next Track"
+                android:padding="8dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_widget_skip_next" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Subtle divider line -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="6dp"
+        android:background="#1AFFFFFF" />
+
+    <!-- 4x4 Expanded 7-Line Synced Lyrics Stream -->
+    <LinearLayout
+        android:id="@+id/widget_large_lyrics_container"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="vertical">
+
+        <!-- Line -3 -->
+        <TextView
+            android:id="@+id/widget_large_lyric_prev_3"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text=""
+            android:textColor="#33FFFFFF"
+            android:textSize="11sp" />
+
+        <!-- Line -2 -->
+        <TextView
+            android:id="@+id/widget_large_lyric_prev_2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text=""
+            android:textColor="#59FFFFFF"
+            android:textSize="11sp" />
+
+        <!-- Line -1 -->
+        <TextView
+            android:id="@+id/widget_large_lyric_prev_1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text=""
+            android:textColor="#8CFFFFFF"
+            android:textSize="12sp" />
+
+        <!-- Active Line (Prominent Showcase Box) -->
+        <LinearLayout
+            android:id="@+id/widget_large_active_box"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginVertical="6dp"
+            android:background="@drawable/widget_active_line_bg"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="8dp">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/ic_widget_lyrics" />
+
+            <TextView
+                android:id="@+id/widget_large_lyric_active"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:text="Tap to open live lyrics"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Line +1 -->
+        <TextView
+            android:id="@+id/widget_large_lyric_next_1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text=""
+            android:textColor="#8CFFFFFF"
+            android:textSize="12sp" />
+
+        <!-- Line +2 -->
+        <TextView
+            android:id="@+id/widget_large_lyric_next_2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text=""
+            android:textColor="#59FFFFFF"
+            android:textSize="11sp" />
+
+        <!-- Line +3 -->
+        <TextView
+            android:id="@+id/widget_large_lyric_next_3"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text=""
+            android:textColor="#33FFFFFF"
+            android:textSize="11sp" />
+
+    </LinearLayout>
+
+    <!-- Footer: Status & Action -->
+    <LinearLayout
+        android:id="@+id/widget_large_footer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/widget_large_status"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Time-Synced Lyrics • 4x4"
+            android:textColor="#55FFFFFF"
+            android:textSize="10sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Tap to open full lyrics ↗"
+            android:textColor="#801DB954"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+</LinearLayout>

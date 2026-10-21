@@ -48,6 +48,21 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/lyrics_widget_info" />
         </receiver>
+
+        <!-- Time-Synced Lyrics 4x4 Home Screen Widget -->
+        <receiver
+            android:name=".widget.Lyrics4x4WidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.spotify.controller.widget.ACTION_PLAY_PAUSE" />
+                <action android:name="com.spotify.controller.widget.ACTION_NEXT" />
+                <action android:name="com.spotify.controller.widget.ACTION_PREV" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lyrics_widget_4x4_info" />
+        </receiver>
     </application>
 
 </manifest>
