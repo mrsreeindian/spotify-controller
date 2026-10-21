@@ -10,7 +10,7 @@ import org.junit.Test
 class LrcParserTest {
 
     @Test
-    fun testParseStandardLrcWithCadenceWords() {
+    fun testParseStandardLrc() {
         val lrc = """
             [00:09.65] The club isn't the best place to find a lover
             [00:12.10] So the bar is where I go
@@ -23,18 +23,17 @@ class LrcParserTest {
         assertEquals("The club isn't the best place to find a lover", lines[0].text)
         assertEquals(9650L, lines[0].startTimeMs)
         assertEquals(12100L, lines[0].endTimeMs)
-        // Standard LRC now receives cadence-estimated word timings for word-by-word karaoke
-        assertTrue(lines[0].words.isNotEmpty())
-        assertEquals("The", lines[0].words.first().word)
+        // Standard LRC preserves pure line synchronization to stay 100% in sync with playback
+        assertTrue(lines[0].words.isEmpty())
 
         assertEquals("So the bar is where I go", lines[1].text)
         assertEquals(12100L, lines[1].startTimeMs)
         assertEquals(14810L, lines[1].endTimeMs)
-        assertTrue(lines[1].words.isNotEmpty())
+        assertTrue(lines[1].words.isEmpty())
 
         assertEquals("Me and my friends at the table doing shots", lines[2].text)
         assertEquals(14810L, lines[2].startTimeMs)
-        assertTrue(lines[2].words.isNotEmpty())
+        assertTrue(lines[2].words.isEmpty())
     }
 
     @Test
@@ -59,7 +58,7 @@ class LrcParserTest {
         assertEquals(10800L, line1.words[1].startTimeMs)
         assertEquals(11500L, line1.words[1].endTimeMs)
 
-        // Last word of line 1 should extend towards next line
+        // Last word of line 1 extends towards next line
         assertEquals("up", line1.words[4].word)
         assertEquals(12800L, line1.words[4].startTimeMs)
         assertTrue(line1.words[4].endTimeMs > 12800L)
@@ -107,10 +106,10 @@ class LrcParserTest {
         """.trimIndent()
 
         val lines = LrcParser.parse(lrc)
-        // With interlude detection (30000 - 15000 >= 4000), a dot line is inserted!
+        // With interlude detection (30000 - 15000 >= 4000), a dot line is inserted
         val verseLine = lines.first { it.text == "Verse line" }
         assertEquals(10000L, verseLine.startTimeMs)
-        assertEquals(15000L, verseLine.endTimeMs) // Ended at instrumental blank marker
+        assertEquals(15000L, verseLine.endTimeMs)
 
         val dotLine = lines.first { it.isDotLine }
         assertEquals("• • •", dotLine.text)

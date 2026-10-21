@@ -11,8 +11,8 @@ object LrcParser {
 
     /**
      * Parses standard or enhanced LRC lyrics into structured LyricLine objects.
-     * Extracts exact syllable/word timings when available (<mm:ss.xx>), or provides
-     * intelligent phoneme cadence timings for standard line-synced lyrics.
+     * Extracts exact syllable/word timings when available (<mm:ss.xx>).
+     * For standard line-synced lyrics, preserves pure line timings without fake word stretching.
      */
     fun parse(lrcContent: String): List<LyricLine> {
         val lines = lrcContent.lines()
@@ -59,20 +59,17 @@ object LrcParser {
         val result = mutableListOf<LyricLine>()
         for (i in rawEntries.indices) {
             val current = rawEntries[i]
-            // Skip empty/instrumental marker lines, but use them to close previous lines
             if (current.text.isBlank()) continue
 
-            // Determine line end timestamp
             val nextTimestamp = if (i + 1 < rawEntries.size) {
                 rawEntries[i + 1].startTimeMs
             } else {
                 current.startTimeMs + 4500L
             }
 
-            // Word-by-word timing resolution
+            // Word-by-word timing: only if exact word timestamps were provided
             val words = if (current.exactWords.isNotEmpty()) {
                 val list = current.exactWords.toMutableList()
-                // Ensure last word runs until near line end
                 if (list.isNotEmpty() && nextTimestamp > list.last().startTimeMs) {
                     val last = list.last()
                     val lastEnd = (nextTimestamp - 150L).coerceAtLeast(last.startTimeMs + 200L)
@@ -80,8 +77,7 @@ object LrcParser {
                 }
                 list
             } else {
-                // Generate cadence-based word timings for standard LRC lines
-                WordTimingEstimator.estimate(current.text, current.startTimeMs, nextTimestamp)
+                emptyList()
             }
 
             // Insert lead-in dots for vocal breaks >= 4 seconds

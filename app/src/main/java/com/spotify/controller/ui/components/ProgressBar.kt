@@ -1,20 +1,17 @@
 package com.spotify.controller.ui.components
 
 import android.os.SystemClock
-import androidx.compose.foundation.background
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -25,7 +22,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -35,7 +35,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Pixel-perfect Media Progress Scrubber.
+ * The dot and track share the exact same canvas coordinates, guaranteed never to be out of place.
+ */
 @Composable
 fun ProgressBar(
     isPlaying: Boolean,
@@ -47,61 +50,123 @@ fun ProgressBar(
 ) {
     val albumColors = LocalAlbumArtColors.current
     var isDragging by remember { mutableStateOf(false) }
-    var dragPositionMs by remember { mutableFloatStateOf(0f) }
+    var dragFraction by remember { mutableFloatStateOf(0f) }
+
+    // Smooth monotonic clock: avoids 1-second background polling hiccups
+    var currentBaseProgress by remember { mutableLongStateOf(progressMs) }
+    var currentBaseTimestamp by remember { mutableLongStateOf(lastSyncTimestamp) }
     var interpolatedProgressMs by remember { mutableLongStateOf(progressMs) }
 
     LaunchedEffect(isPlaying, progressMs, lastSyncTimestamp) {
-        interpolatedProgressMs = progressMs
-        if (isPlaying && lastSyncTimestamp > 0L) {
+        val currentPredicted = currentBaseProgress + (SystemClock.elapsedRealtime() - currentBaseTimestamp)
+        val diff = kotlin.math.abs(progressMs - currentPredicted)
+        if (diff > 400L || !isPlaying || currentBaseTimestamp == 0L) {
+            currentBaseProgress = progressMs
+            currentBaseTimestamp = lastSyncTimestamp
+        }
+
+        if (isPlaying && currentBaseTimestamp > 0L) {
             while (isActive) {
-                val elapsedSinceSync = SystemClock.elapsedRealtime() - lastSyncTimestamp
-                val current = (progressMs + elapsedSinceSync).coerceIn(0L, durationMs.coerceAtLeast(1L))
+                val elapsedSinceSync = SystemClock.elapsedRealtime() - currentBaseTimestamp
+                val current = (currentBaseProgress + elapsedSinceSync).coerceIn(0L, durationMs.coerceAtLeast(1L))
                 interpolatedProgressMs = current
-                delay(100L)
+                delay(50L) // 20fps clock
             }
+        } else {
+            interpolatedProgressMs = progressMs
         }
     }
 
-    val displayProgressMs = if (isDragging) dragPositionMs.toLong() else interpolatedProgressMs
-    val sliderValue = if (durationMs > 0) {
+    val displayProgressMs = if (isDragging) {
+        (dragFraction * durationMs).toLong()
+    } else {
+        interpolatedProgressMs
+    }
+
+    val progressFraction = if (durationMs > 0) {
         (displayProgressMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
     } else 0f
 
-    val interactionSource = remember { MutableInteractionSource() }
-
     Column(modifier = modifier.fillMaxWidth()) {
-        Slider(
-            value = sliderValue,
-            onValueChange = { fraction ->
-                isDragging = true
-                dragPositionMs = fraction * durationMs
-            },
-            onValueChangeFinished = {
-                isDragging = false
-                onSeek(dragPositionMs.toLong())
-            },
-            interactionSource = interactionSource,
-            thumb = {
-                Box(
-                    modifier = Modifier
-                        .size(if (isDragging) 12.dp else 8.dp)
-                        .background(albumColors.tonalPrimary, CircleShape)
-                )
-            },
-            track = { sliderState ->
-                SliderDefaults.Track(
-                    sliderState = sliderState,
-                    modifier = Modifier.height(3.dp),
-                    colors = SliderDefaults.colors(
-                        activeTrackColor = albumColors.tonalPrimary,
-                        inactiveTrackColor = Color.White.copy(alpha = 0.2f)
-                    )
-                )
-            },
+        // Pixel-perfect Canvas Scrubber
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(24.dp)
-        )
+                .height(28.dp)
+                .pointerInput(durationMs) {
+                    detectTapGestures { offset ->
+                        if (size.width > 0 && durationMs > 0) {
+                            val newFraction = (offset.x / size.width).coerceIn(0f, 1f)
+                            val targetMs = (newFraction * durationMs).toLong()
+                            onSeek(targetMs)
+                        }
+                    }
+                }
+                .pointerInput(durationMs) {
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            if (size.width > 0) {
+                                isDragging = true
+                                dragFraction = (offset.x / size.width).coerceIn(0f, 1f)
+                            }
+                        },
+                        onDragEnd = {
+                            isDragging = false
+                            val targetMs = (dragFraction * durationMs).toLong()
+                            onSeek(targetMs)
+                        },
+                        onDragCancel = {
+                            isDragging = false
+                        },
+                        onDrag = { change, _ ->
+                            change.consume()
+                            if (size.width > 0) {
+                                dragFraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                            }
+                        }
+                    )
+                }
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val trackY = size.height / 2f
+                val strokePx = 3.dp.toPx()
+                val thumbRadiusPx = if (isDragging) 6.5.dp.toPx() else 4.5.dp.toPx()
+                val currentX = (size.width * progressFraction).coerceIn(0f, size.width)
+
+                // 1. Inactive background track
+                drawLine(
+                    color = Color.White.copy(alpha = 0.2f),
+                    start = Offset(0f, trackY),
+                    end = Offset(size.width, trackY),
+                    strokeWidth = strokePx,
+                    cap = StrokeCap.Round
+                )
+
+                // 2. Active foreground track
+                if (currentX > 0f) {
+                    drawLine(
+                        color = albumColors.tonalPrimary,
+                        start = Offset(0f, trackY),
+                        end = Offset(currentX, trackY),
+                        strokeWidth = strokePx,
+                        cap = StrokeCap.Round
+                    )
+                }
+
+                // 3. Thumb Dot: centered exactly at (currentX, trackY)
+                drawCircle(
+                    color = albumColors.tonalPrimary,
+                    radius = thumbRadiusPx,
+                    center = Offset(currentX, trackY)
+                )
+                // Crisp white inner core for thumb
+                drawCircle(
+                    color = Color.White,
+                    radius = thumbRadiusPx * 0.60f,
+                    center = Offset(currentX, trackY)
+                )
+            }
+        }
 
         Row(
             modifier = Modifier

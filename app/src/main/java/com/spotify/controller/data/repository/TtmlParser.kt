@@ -3,14 +3,13 @@ package com.spotify.controller.data.repository
 import com.spotify.controller.data.model.LyricLine
 import com.spotify.controller.data.model.WordTiming
 import org.w3c.dom.Element
-import org.w3c.dom.Node
 import org.xml.sax.InputSource
 import java.io.StringReader
 import javax.xml.parsers.DocumentBuilderFactory
 
 /**
  * Timed Text Markup Language (TTML) parser supporting Apple Music / Musixmatch / Spicy Lyrics format.
- * Accurately extracts syllable & word-level timing spans, with intelligent cadence fallback for plain lines.
+ * Accurately extracts syllable & word-level timing spans.
  */
 object TtmlParser {
 
@@ -77,19 +76,12 @@ object TtmlParser {
                         pEnd = if (words.isNotEmpty()) words.last().endTimeMs else pBegin + 4000L
                     }
 
-                    // Fallback to intelligent cadence estimator if line has no inner spans
-                    val finalWords = if (words.isEmpty()) {
-                        WordTimingEstimator.estimate(fullText, pBegin, pEnd)
-                    } else {
-                        // Ensure last word closes with the line
-                        if (words.size > 1 && words.last().endTimeMs < pEnd - 200L) {
-                            val last = words.last()
-                            words[words.lastIndex] = last.copy(endTimeMs = pEnd)
-                        }
-                        words
+                    if (words.size > 1 && words.last().endTimeMs < pEnd - 200L) {
+                        val last = words.last()
+                        words[words.lastIndex] = last.copy(endTimeMs = pEnd)
                     }
 
-                    // Insert lead-in dots for instrumental breaks >= 4s (Spicy Lyrics feature)
+                    // Insert lead-in dots for instrumental breaks >= 4s
                     if (lines.isNotEmpty()) {
                         val prevEnd = lines.last().endTimeMs
                         if (pBegin - prevEnd >= 4000L) {
@@ -111,7 +103,7 @@ object TtmlParser {
                             startTimeMs = pBegin,
                             endTimeMs = pEnd,
                             text = fullText,
-                            words = finalWords
+                            words = words
                         )
                     )
                 }
