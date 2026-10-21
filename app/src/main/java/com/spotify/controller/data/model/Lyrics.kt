@@ -19,14 +19,7 @@ data class Lyrics(
         if (currentPositionMs < lines[0].startTimeMs) return -1
 
         for (i in lines.indices.reversed()) {
-            val line = lines[i]
-            if (currentPositionMs >= line.startTimeMs) {
-                if (line.endTimeMs > line.startTimeMs && currentPositionMs > (line.endTimeMs + 600L) && i < lines.size - 1) {
-                    val nextLine = lines[i + 1]
-                    if (nextLine.startTimeMs - currentPositionMs > 3000L) {
-                        return -1 // Instrumental break
-                    }
-                }
+            if (currentPositionMs >= lines[i].startTimeMs) {
                 return i
             }
         }

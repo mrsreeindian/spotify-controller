@@ -18,6 +18,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -159,10 +160,19 @@ fun SpicyLyricsView(
     var manualSyncTrigger by remember { mutableLongStateOf(0L) }
     var hasInitiallyScrolled by remember { mutableStateOf(false) }
 
-    LaunchedEffect(listState.isScrollInProgress) {
-        if (listState.isScrollInProgress) {
-            userScrolled = true
-            lastUserScrollTime = SystemClock.elapsedRealtime()
+    // ONLY flag userScrolled when the user physically touches and drags the screen!
+    // Programmatic auto-scroll animations never emit DragInteraction.
+    LaunchedEffect(listState.interactionSource) {
+        listState.interactionSource.interactions.collect { interaction ->
+            when (interaction) {
+                is DragInteraction.Start -> {
+                    userScrolled = true
+                    lastUserScrollTime = SystemClock.elapsedRealtime()
+                }
+                is DragInteraction.Stop, is DragInteraction.Cancel -> {
+                    lastUserScrollTime = SystemClock.elapsedRealtime()
+                }
+            }
         }
     }
 
