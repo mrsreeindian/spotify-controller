@@ -78,6 +78,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra("OPEN_LYRICS", false) == true) {
+            playerViewModel.setLyricsVisible(true)
+        }
+
         val uri = intent?.data ?: return
         if (uri.scheme == "spotifycontroller" && uri.host == "callback") {
             lifecycleScope.launch {

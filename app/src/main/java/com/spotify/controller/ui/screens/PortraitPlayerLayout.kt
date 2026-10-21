@@ -2,7 +2,6 @@ package com.spotify.controller.ui.screens
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.sp
@@ -203,7 +203,7 @@ fun PortraitPlayerLayout(
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White,
                                     maxLines = 1,
-                                    modifier = Modifier.basicMarquee()
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 val subtitleText = when {
@@ -218,7 +218,7 @@ fun PortraitPlayerLayout(
                                     fontWeight = FontWeight.Normal,
                                     color = Color.White.copy(alpha = 0.65f),
                                     maxLines = 1,
-                                    modifier = Modifier.basicMarquee()
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
 

@@ -59,5 +59,8 @@ class SpotifyControllerApp : Application() {
 
         lrclibApiService = LrclibApiService(okHttpClient)
         lyricsRepository = LyricsRepository(lrclibApiService, okHttpClient)
+
+        // Initialize and start real-time home screen widget sync
+        com.spotify.controller.widget.LyricsWidgetProvider.startWidgetSync(this)
     }
 }

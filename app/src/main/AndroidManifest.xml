@@ -33,6 +33,21 @@
                     android:host="callback" />
             </intent-filter>
         </activity>
+
+        <!-- Time-Synced Lyrics Resizable Home Screen Widget -->
+        <receiver
+            android:name=".widget.LyricsWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.spotify.controller.widget.ACTION_PLAY_PAUSE" />
+                <action android:name="com.spotify.controller.widget.ACTION_NEXT" />
+                <action android:name="com.spotify.controller.widget.ACTION_PREV" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lyrics_widget_info" />
+        </receiver>
     </application>
 
 </manifest>
