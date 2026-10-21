@@ -11,8 +11,8 @@ object LrcParser {
 
     /**
      * Parses standard or enhanced LRC lyrics into structured LyricLine objects.
-     * Extracts exact syllable/word timings when available (<mm:ss.xx>).
-     * For standard line-synced lyrics, preserves pure line timings without fake word stretching.
+     * Extracts exact syllable/word timings when available (<mm:ss.xx>), or provides
+     * natural vocal tempo word timings for standard line-synced lyrics.
      */
     fun parse(lrcContent: String): List<LyricLine> {
         val lines = lrcContent.lines()
@@ -67,7 +67,7 @@ object LrcParser {
                 current.startTimeMs + 4500L
             }
 
-            // Word-by-word timing: only if exact word timestamps were provided
+            // Word-by-word timing: exact if available, otherwise natural vocal tempo estimate
             val words = if (current.exactWords.isNotEmpty()) {
                 val list = current.exactWords.toMutableList()
                 if (list.isNotEmpty() && nextTimestamp > list.last().startTimeMs) {
@@ -77,7 +77,7 @@ object LrcParser {
                 }
                 list
             } else {
-                emptyList()
+                WordTimingEstimator.estimate(current.text, current.startTimeMs, nextTimestamp)
             }
 
             // Insert lead-in dots for vocal breaks >= 4 seconds

@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
@@ -55,6 +56,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,10 +66,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -125,7 +130,7 @@ fun SpicyLyricsView(
         val diff = kotlin.math.abs(progressMs - currentPredicted)
         if (diff > 400L || !isPlaying || currentBaseTimestamp == 0L) {
             currentBaseProgress = progressMs
-            currentBaseTimestamp = lastSyncTimestamp
+            currentBaseTimestamp = if (lastSyncTimestamp > 0L) lastSyncTimestamp else SystemClock.elapsedRealtime()
         }
 
         if (isPlaying && currentBaseTimestamp > 0L) {
@@ -133,7 +138,7 @@ fun SpicyLyricsView(
                 val elapsedSinceSync = SystemClock.elapsedRealtime() - currentBaseTimestamp
                 val current = (currentBaseProgress + elapsedSinceSync).coerceIn(0L, durationMs.coerceAtLeast(1L))
                 liveProgressMs = current
-                delay(40L) // 25fps clock: fluid without GC/frame drop overhead
+                delay(16L) // 60fps clock: fluid, buttery-smooth progressive karaoke sweep
             }
         } else {
             liveProgressMs = progressMs
@@ -170,7 +175,7 @@ fun SpicyLyricsView(
         if (!userScrolled && activeIndex in lyrics.lines.indices) {
             listState.animateScrollToItem(
                 index = activeIndex,
-                scrollOffset = -220
+                scrollOffset = 0
             )
         }
     }
@@ -390,7 +395,8 @@ fun SpicyLyricsView(
 
 /**
  * Renders an individual lyric line.
- * Supports exact word-by-word highlighting with spring scaling & bloom, or clean line-level highlighting.
+ * Supports exact word-by-word karaoke synchronization with spring scaling & bloom,
+ * or clean line-level highlighting.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -433,7 +439,7 @@ fun SpicyLyricLine(
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(3.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 line.words.forEach { wordTiming ->
                     SpicyWordItem(
@@ -449,13 +455,13 @@ fun SpicyLyricLine(
             Text(
                 text = line.text,
                 fontSize = 24.sp,
-                fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.SemiBold,
-                color = if (isActive) Color.White else Color.White.copy(alpha = 0.5f),
-                lineHeight = 32.sp,
+                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
+                color = if (isActive) Color.White else Color.White.copy(alpha = 0.40f),
+                lineHeight = 34.sp,
                 style = if (isActive) {
                     TextStyle(
                         shadow = Shadow(
-                            color = Color.White.copy(alpha = 0.75f),
+                            color = Color.White.copy(alpha = 0.85f),
                             offset = Offset.Zero,
                             blurRadius = 14f
                         )
@@ -467,8 +473,10 @@ fun SpicyLyricLine(
 }
 
 /**
- * Renders an individual word with spring scale, clean solid illumination, and symmetrical bloom glow.
- * Single-layer design prevents font-metric ghosting or clipped shadows.
+ * Renders an individual word with progressive karaoke fill sweep, spring scale,
+ * weightless vocal lift, and unclipped symmetrical Gaussian bloom shadow.
+ * Single-layer design with horizontal gradient shader guarantees zero font-metric ghosting
+ * and eliminates sharp scissor-clipped shadow edges.
  */
 @Composable
 fun SpicyWordItem(
@@ -481,9 +489,17 @@ fun SpicyWordItem(
     val isWordActive = isLineActive && (currentPositionMs in wordTiming.startTimeMs until wordTiming.endTimeMs)
     val isWordPast = isLineActive && (currentPositionMs >= wordTiming.endTimeMs)
 
-    // Spring scale: zooms smoothly to 1.07x while actively being sung
+    // Calculate duration & smooth progressive karaoke wipe fraction (0.0 to 1.0)
+    val duration = (wordTiming.endTimeMs - wordTiming.startTimeMs).coerceAtLeast(1L)
+    val progress = when {
+        !isLineActive || currentPositionMs < wordTiming.startTimeMs -> 0.0f
+        currentPositionMs >= wordTiming.endTimeMs -> 1.0f
+        else -> ((currentPositionMs - wordTiming.startTimeMs).toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+    }
+
+    // Spring scale: zooms smoothly to 1.08x while actively being sung
     val wordScale by animateFloatAsState(
-        targetValue = if (isWordActive) 1.07f else 1.0f,
+        targetValue = if (isWordActive) 1.08f else 1.0f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium
@@ -491,35 +507,88 @@ fun SpicyWordItem(
         label = "wordScale"
     )
 
-    val wordColor = when {
-        isWordActive -> Color.White
-        isWordPast -> Color.White.copy(alpha = 0.95f)
-        else -> Color.White.copy(alpha = 0.35f)
-    }
+    // Spring vertical lift: floats up 2.5dp while actively sung for weightless karaoke vocal feel
+    val liftY by animateDpAsState(
+        targetValue = if (isWordActive) (-2.5).dp else 0.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "liftY"
+    )
 
-    Text(
-        text = wordTiming.word,
-        fontSize = 24.sp,
-        fontWeight = if (isWordActive) FontWeight.ExtraBold else FontWeight.Bold,
-        color = wordColor,
-        lineHeight = 32.sp,
-        style = if (isWordActive) {
-            TextStyle(
+    var wordWidthPx by remember(wordTiming.word) { mutableFloatStateOf(0f) }
+
+    if (isWordActive && wordWidthPx > 0f) {
+        val wipePx = progress * wordWidthPx
+        val featherPx = 6f
+        val pLeft = ((wipePx - featherPx) / wordWidthPx).coerceIn(0f, 1f)
+        val pRight = ((wipePx + featherPx) / wordWidthPx).coerceIn(0f, 1f)
+
+        val karaokeBrush = Brush.horizontalGradient(
+            colorStops = arrayOf(
+                0.0f to Color.White,
+                pLeft to Color.White,
+                pRight to Color.White.copy(alpha = 0.35f),
+                1.0f to Color.White.copy(alpha = 0.35f)
+            ),
+            startX = 0f,
+            endX = wordWidthPx
+        )
+
+        Text(
+            text = wordTiming.word,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            fontStyle = if (wordTiming.isBackground) FontStyle.Italic else FontStyle.Normal,
+            lineHeight = 34.sp,
+            style = TextStyle(
+                brush = karaokeBrush,
                 shadow = Shadow(
                     color = Color.White.copy(alpha = 0.85f),
                     offset = Offset.Zero,
                     blurRadius = 14f
                 )
-            )
-        } else TextStyle.Default,
-        modifier = modifier
-            .scale(wordScale)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onWordClick
-            )
-    )
+            ),
+            modifier = modifier
+                .onSizeChanged { size ->
+                    if (size.width > 0) wordWidthPx = size.width.toFloat()
+                }
+                .offset(y = liftY)
+                .scale(wordScale)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onWordClick
+                )
+        )
+    } else {
+        val textColor = when {
+            isWordPast -> Color.White.copy(alpha = 0.95f)
+            isWordActive -> Color.White
+            else -> Color.White.copy(alpha = if (isLineActive) 0.35f else 0.28f)
+        }
+
+        Text(
+            text = wordTiming.word,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            fontStyle = if (wordTiming.isBackground) FontStyle.Italic else FontStyle.Normal,
+            color = textColor,
+            lineHeight = 34.sp,
+            modifier = modifier
+                .onSizeChanged { size ->
+                    if (size.width > 0) wordWidthPx = size.width.toFloat()
+                }
+                .offset(y = liftY)
+                .scale(wordScale)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onWordClick
+                )
+        )
+    }
 }
 
 /**

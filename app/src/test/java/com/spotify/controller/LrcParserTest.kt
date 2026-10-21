@@ -23,17 +23,19 @@ class LrcParserTest {
         assertEquals("The club isn't the best place to find a lover", lines[0].text)
         assertEquals(9650L, lines[0].startTimeMs)
         assertEquals(12100L, lines[0].endTimeMs)
-        // Standard LRC preserves pure line synchronization to stay 100% in sync with playback
-        assertTrue(lines[0].words.isEmpty())
+        // Standard LRC produces natural vocal tempo word timings for karaoke animation
+        assertEquals(10, lines[0].words.size)
+        assertEquals("The", lines[0].words[0].word)
+        assertEquals("lover", lines[0].words.last().word)
 
         assertEquals("So the bar is where I go", lines[1].text)
         assertEquals(12100L, lines[1].startTimeMs)
         assertEquals(14810L, lines[1].endTimeMs)
-        assertTrue(lines[1].words.isEmpty())
+        assertEquals(7, lines[1].words.size)
 
         assertEquals("Me and my friends at the table doing shots", lines[2].text)
         assertEquals(14810L, lines[2].startTimeMs)
-        assertTrue(lines[2].words.isEmpty())
+        assertEquals(9, lines[2].words.size)
     }
 
     @Test
