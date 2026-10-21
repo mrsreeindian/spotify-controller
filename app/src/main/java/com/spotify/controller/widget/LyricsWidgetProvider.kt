@@ -123,15 +123,21 @@ open class LyricsWidgetProvider : AppWidgetProvider() {
                 val lyricsResult = app.lyricsRepository.getLyrics(track, token)
                 cachedLyrics = lyricsResult.getOrElse { Lyrics.EMPTY }
 
-                // Load album art bitmap
+                // Load album art bitmap - downsampled to 160x160 to prevent TransactionTooLargeException
                 if (!track.albumArtUrl.isNullOrBlank()) {
                     try {
                         val req = ImageRequest.Builder(app)
                             .data(track.albumArtUrl)
+                            .size(160, 160)
                             .allowHardware(false)
                             .build()
                         val res = app.imageLoader.execute(req)
-                        cachedAlbumArt = (res.drawable as? BitmapDrawable)?.bitmap
+                        val rawBitmap = (res.drawable as? BitmapDrawable)?.bitmap
+                        cachedAlbumArt = if (rawBitmap != null && (rawBitmap.width > 160 || rawBitmap.height > 160)) {
+                            Bitmap.createScaledBitmap(rawBitmap, 160, 160, true)
+                        } else {
+                            rawBitmap
+                        }
                     } catch (e: Exception) {
                         cachedAlbumArt = null
                     }
@@ -175,8 +181,8 @@ open class LyricsWidgetProvider : AppWidgetProvider() {
             } catch (e: Exception) {
                 false
             }
-            val defaultHeight = if (is4x4Provider) 260 else 120
-            val minHeightDp = widgetOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, defaultHeight)
+            val rawHeight = widgetOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
+            val minHeightDp = if (rawHeight > 0) rawHeight else if (is4x4Provider) 260 else 120
 
             // Calculate current live position
             val currentPos = if (playbackState.isPlaying && playbackState.lastSyncTimestamp > 0L) {
@@ -190,19 +196,24 @@ open class LyricsWidgetProvider : AppWidgetProvider() {
                 lyrics.getActiveLineIndex(currentPos)
             } else -1
 
-            // Choose layout based on height and provider tier:
+            // Choose layout based on provider type and height:
+            // Dedicated 4x4 or >= 240dp height: Large 4x4 (7 lines)
             // < 100dp: Compact (1 row)
             // 100dp..175dp: Standard (2 rows)
             // 176dp..239dp: Expanded (3 rows)
-            // >= 240dp (or 4x4 widget): Large 4x4 (4 rows, 7-line lyrics showcase)
             val remoteViews = when {
+                is4x4Provider -> buildLarge4x4Views(context, playbackState, lyrics, activeIndex)
+                minHeightDp >= 240 -> buildLarge4x4Views(context, playbackState, lyrics, activeIndex)
                 minHeightDp < 100 -> buildCompactViews(context, playbackState, lyrics, activeIndex)
                 minHeightDp in 100..175 -> buildStandardViews(context, playbackState, lyrics, activeIndex)
-                minHeightDp in 176..239 -> buildExpandedViews(context, playbackState, lyrics, activeIndex)
-                else -> buildLarge4x4Views(context, playbackState, lyrics, activeIndex)
+                else -> buildExpandedViews(context, playbackState, lyrics, activeIndex)
             }
 
-            appWidgetManager.updateAppWidget(appWidgetId, remoteViews)
+            try {
+                appWidgetManager.updateAppWidget(appWidgetId, remoteViews)
+            } catch (e: Exception) {
+                android.util.Log.e("LyricsWidgetProvider", "Error updating widget $appWidgetId", e)
+            }
         }
 
         private fun buildCompactViews(
@@ -392,6 +403,7 @@ open class LyricsWidgetProvider : AppWidgetProvider() {
             )
             attachLyricsIntent(context, views, R.id.widget_large_lyrics_container)
             attachAppIntent(context, views, R.id.widget_large_track_info)
+            attachAppIntent(context, views, R.id.widget_root)
 
             return views
         }
