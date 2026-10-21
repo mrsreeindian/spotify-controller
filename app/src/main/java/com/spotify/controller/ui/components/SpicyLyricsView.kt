@@ -2,6 +2,7 @@ package com.spotify.controller.ui.components
 
 import android.os.SystemClock
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
@@ -16,9 +17,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -186,22 +189,69 @@ fun SpicyLyricsView(
         }
     }
 
-    // Auto-scroll to center the active line:
-    // Only auto-scrolls while music is playing, or when the user explicitly triggers a sync/seek!
+    // Tempo-adaptive auto-scroll with golden-ratio eye-level focal positioning
     LaunchedEffect(activeIndex, userScrolled, isPlaying, manualSyncTrigger) {
         val shouldScroll = (isPlaying && !userScrolled) || manualSyncTrigger > 0L
         if (shouldScroll && activeIndex in lyrics.lines.indices) {
-            listState.animateScrollToItem(
-                index = activeIndex,
-                scrollOffset = 0
-            )
+            val currentLine = lyrics.lines.getOrNull(activeIndex)
+            val nextLine = lyrics.lines.getOrNull(activeIndex + 1)
+            val lineTempoMs = when {
+                nextLine != null && currentLine != null -> (nextLine.startTimeMs - currentLine.startTimeMs).coerceAtLeast(400L)
+                currentLine != null -> (currentLine.endTimeMs - currentLine.startTimeMs).coerceAtLeast(1000L)
+                else -> 3000L
+            }
+
+            // Adaptive scroll physics based on musical tempo:
+            // Fast songs (<2s): snappy 200ms scroll to keep up with rapid vocals
+            // Moderate songs (2-4.5s): balanced 360ms smooth curve
+            // Slow ballads (>=4.5s): luxurious 680ms gentle cinematic glide
+            val isManual = manualSyncTrigger > 0L
+            val scrollDurationMs = when {
+                isManual -> 250
+                lineTempoMs < 2000L -> (lineTempoMs * 0.22f).toInt().coerceIn(180, 260)
+                lineTempoMs < 4500L -> (lineTempoMs * 0.14f).toInt().coerceIn(300, 460)
+                else -> (lineTempoMs * 0.10f).toInt().coerceIn(580, 850)
+            }
+
+            val scrollEasing = when {
+                isManual || lineTempoMs < 2000L -> FastOutSlowInEasing
+                lineTempoMs < 4500L -> CubicBezierEasing(0.25f, 0.1f, 0.25f, 1.0f)
+                else -> CubicBezierEasing(0.20f, 0.0f, 0.20f, 1.0f)
+            }
+
+            val viewportHeight = listState.layoutInfo.viewportSize.height
+            val visibleItem = listState.layoutInfo.visibleItemsInfo.find { it.index == activeIndex }
+
+            if (visibleItem != null && viewportHeight > 0) {
+                // Golden-ratio eye-level focal point: 36% of the viewport height
+                val targetY = viewportHeight * 0.36f
+                val itemCenter = visibleItem.offset + (visibleItem.size / 2f)
+                val deltaPx = itemCenter - targetY
+
+                if (kotlin.math.abs(deltaPx) > 3f) {
+                    val animSpec = tween<Float>(
+                        durationMillis = scrollDurationMs,
+                        easing = scrollEasing
+                    )
+                    listState.animateScrollBy(deltaPx, animSpec)
+                }
+            } else {
+                listState.animateScrollToItem(
+                    index = activeIndex,
+                    scrollOffset = 0
+                )
+            }
+
             if (manualSyncTrigger > 0L) {
                 manualSyncTrigger = 0L
             }
         }
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val focusPaddingTop = maxHeight * 0.36f
+        val focusPaddingBottom = maxHeight * 0.50f
+
         // Main Lyrics Scroll Area
         Box(
             modifier = Modifier
@@ -280,7 +330,7 @@ fun SpicyLyricsView(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(top = 90.dp, bottom = 150.dp),
+                        contentPadding = PaddingValues(top = focusPaddingTop, bottom = focusPaddingBottom),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         itemsIndexed(
