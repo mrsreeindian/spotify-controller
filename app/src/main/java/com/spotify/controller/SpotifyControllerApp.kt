@@ -58,6 +58,6 @@ class SpotifyControllerApp : Application() {
         )
 
         lrclibApiService = LrclibApiService(okHttpClient)
-        lyricsRepository = LyricsRepository(lrclibApiService)
+        lyricsRepository = LyricsRepository(lrclibApiService, okHttpClient)
     }
 }

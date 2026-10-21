@@ -53,7 +53,8 @@ class PlayerViewModel(
         // Observe playback changes to extract theme colors & update lyrics
         viewModelScope.launch {
             playbackState.collect { state ->
-                lyricsViewModel.onTrackChanged(state.track)
+                val token = credentials.value.getEffectiveToken()
+                lyricsViewModel.onTrackChanged(state.track, token)
 
                 val artUrl = state.track?.albumArtUrl
                 if (!artUrl.isNullOrBlank() && artUrl != lastExtractedUrl) {

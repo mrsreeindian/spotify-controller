@@ -7,7 +7,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
-import com.spotify.controller.ui.components.DynamicGradientBackground
+import com.spotify.controller.ui.components.SpicyDynamicBackground
 import com.spotify.controller.ui.theme.SpotifyControllerTheme
 import com.spotify.controller.ui.viewmodel.PlayerViewModel
 
@@ -32,7 +32,7 @@ fun MainPlayerScreen(
     val isLandscapeMode = isLandscapeLocked || isSystemLandscape
 
     SpotifyControllerTheme(albumColors = albumColors) {
-        DynamicGradientBackground(modifier = modifier.fillMaxSize()) {
+        SpicyDynamicBackground(modifier = modifier.fillMaxSize()) {
             if (isLandscapeMode) {
                 LandscapePlayerLayout(
                     playbackState = playbackState,
