@@ -24,6 +24,10 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -44,9 +48,8 @@ import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -69,12 +72,14 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.sp
 import com.spotify.controller.data.model.LyricLine
 import com.spotify.controller.data.model.Lyrics
@@ -111,6 +116,8 @@ class HorizontalProgressShape(private val fraction: Float) : Shape {
  * Features:
  * - 60fps continuous millisecond client ticker
  * - Word-by-word progressive karaoke wipe (Apple Music & Spicy Lyrics style)
+ * - Camera punch-hole clearance (lyrics safely shifted to the right)
+ * - Minimal, uncluttered aesthetic
  * - Kinetic spring bounce & sinusoidal vertical breath lift per singing syllable
  * - Glowing bloom on active vocal syllables
  * - Tap any word or line to seek Spotify playback directly
@@ -135,6 +142,11 @@ fun SpicyLyricsView(
 ) {
     val albumColors = LocalAlbumArtColors.current
     val listState = rememberLazyListState()
+
+    // Camera punch-hole safe clearance: ensures lyrics are never obstructed by corner or left cutouts
+    val layoutDirection = LocalLayoutDirection.current
+    val cutoutStart = WindowInsets.displayCutout.asPaddingValues().calculateStartPadding(layoutDirection)
+    val safeStartPadding = max(cutoutStart + 20.dp, 56.dp)
 
     // 60fps real-time client-side millisecond ticker for ultra-smooth progressive character wipe
     var liveProgressMs by remember { mutableLongStateOf(progressMs) }
@@ -187,13 +199,18 @@ fun SpicyLyricsView(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp)
+                .padding(
+                    start = safeStartPadding, // Shifts lyrics comfortably to the right past the camera punch hole
+                    end = 20.dp,
+                    top = 10.dp,
+                    bottom = 12.dp
+                )
         ) {
-            // Header Bar
+            // Minimal Header Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp, bottom = 8.dp),
+                    .padding(bottom = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -201,26 +218,18 @@ fun SpicyLyricsView(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = albumColors.tonalSecondaryContainer,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Rounded.GraphicEq,
-                                contentDescription = "Live Lyrics",
-                                tint = albumColors.tonalOnSecondaryContainer,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.size(10.dp))
+                    Icon(
+                        imageVector = Icons.Rounded.GraphicEq,
+                        contentDescription = "Live Lyrics",
+                        tint = albumColors.tonalPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = "Spicy Lyrics",
-                                fontSize = 15.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
@@ -228,40 +237,37 @@ fun SpicyLyricsView(
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Surface(
                                     shape = RoundedCornerShape(4.dp),
-                                    color = albumColors.tonalPrimary.copy(alpha = 0.25f)
+                                    color = albumColors.tonalPrimary.copy(alpha = 0.2f)
                                 ) {
                                     Text(
-                                        text = if (lyrics.hasExactWordSync) "STUDIO KARAOKE" else "WORD SYNC",
-                                        fontSize = 9.sp,
+                                        text = if (lyrics.hasExactWordSync) "KARAOKE" else "WORD SYNC",
+                                        fontSize = 8.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = albumColors.tonalPrimary,
-                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                                     )
                                 }
                             }
                         }
                         Text(
                             text = "$trackTitle • $artistName",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                            fontSize = 11.sp,
+                            color = Color.White.copy(alpha = 0.6f),
                             maxLines = 1
                         )
                     }
                 }
 
-                // Close Button
-                FilledTonalIconButton(
+                // Minimal Close Button
+                IconButton(
                     onClick = onClose,
-                    modifier = Modifier.size(38.dp),
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = albumColors.tonalSecondaryContainer,
-                        contentColor = albumColors.tonalOnSecondaryContainer
-                    )
+                    modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
                         contentDescription = "Close Lyrics",
-                        modifier = Modifier.size(20.dp)
+                        tint = Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
@@ -281,14 +287,14 @@ fun SpicyLyricsView(
                         ) {
                             CircularProgressIndicator(
                                 color = albumColors.tonalPrimary,
-                                modifier = Modifier.size(44.dp),
-                                strokeWidth = 3.dp
+                                modifier = Modifier.size(36.dp),
+                                strokeWidth = 2.5.dp
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(14.dp))
                             Text(
-                                text = "Connecting to Spicy Lyrics engine...",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 14.sp
+                                text = "Loading lyrics...",
+                                color = Color.White.copy(alpha = 0.65f),
+                                fontSize = 13.sp
                             )
                         }
                     }
@@ -302,23 +308,23 @@ fun SpicyLyricsView(
                             Icon(
                                 imageVector = Icons.Rounded.MusicNote,
                                 contentDescription = "No Lyrics",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                modifier = Modifier.size(56.dp)
+                                tint = Color.White.copy(alpha = 0.35f),
+                                modifier = Modifier.size(48.dp)
                             )
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
                             Text(
                                 text = if (!lyrics.plainLyrics.isNullOrBlank()) {
                                     lyrics.plainLyrics
                                 } else {
-                                    "No synchronized lyrics found for \"$trackTitle\"."
+                                    "No synchronized lyrics available."
                                 },
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
-                                fontSize = 15.sp,
+                                color = Color.White.copy(alpha = 0.75f),
+                                fontSize = 14.sp,
                                 textAlign = TextAlign.Center,
-                                lineHeight = 22.sp
+                                lineHeight = 20.sp
                             )
 
-                            Spacer(modifier = Modifier.height(20.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
 
                             FilledTonalButton(
                                 onClick = onRetry,
@@ -327,10 +333,10 @@ fun SpicyLyricsView(
                                 Icon(
                                     imageVector = Icons.Rounded.Refresh,
                                     contentDescription = "Retry",
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Retry or Load Demo Track")
+                                Text("Retry or Load Demo Track", fontSize = 12.sp)
                             }
                         }
                     }
@@ -339,8 +345,8 @@ fun SpicyLyricsView(
                         LazyColumn(
                             state = listState,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(top = 100.dp, bottom = 160.dp),
-                            verticalArrangement = Arrangement.spacedBy(18.dp)
+                            contentPadding = PaddingValues(top = 90.dp, bottom = 150.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             itemsIndexed(
                                 items = lyrics.lines,
@@ -366,37 +372,35 @@ fun SpicyLyricsView(
             }
         }
 
-        // Floating "Sync with playback" button when user scrolled away
+        // Floating Minimal "Sync with playback" pill
         AnimatedVisibility(
             visible = userScrolled && activeIndex in lyrics.lines.indices,
             enter = fadeIn(animationSpec = tween(200)),
             exit = fadeOut(animationSpec = tween(200)),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 24.dp)
+                .padding(bottom = 20.dp)
         ) {
             Surface(
-                onClick = {
-                    userScrolled = false
-                },
-                shape = RoundedCornerShape(24.dp),
+                onClick = { userScrolled = false },
+                shape = RoundedCornerShape(20.dp),
                 color = albumColors.tonalPrimary,
                 contentColor = albumColors.tonalOnPrimary,
-                shadowElevation = 8.dp
+                shadowElevation = 6.dp
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.KeyboardArrowDown,
                         contentDescription = "Sync",
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Sync with playback",
-                        fontSize = 13.sp,
+                        text = "Sync",
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -419,7 +423,7 @@ fun SpicyLyricLine(
     onWordClick: (Long) -> Unit
 ) {
     val lineScale by animateFloatAsState(
-        targetValue = if (isActive) 1.04f else 0.96f,
+        targetValue = if (isActive) 1.03f else 0.96f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
@@ -428,7 +432,7 @@ fun SpicyLyricLine(
     )
 
     val lineAlpha by animateFloatAsState(
-        targetValue = if (isActive) 1.0f else 0.32f,
+        targetValue = if (isActive) 1.0f else 0.30f,
         animationSpec = tween(durationMillis = 200),
         label = "lineAlpha"
     )
@@ -443,14 +447,14 @@ fun SpicyLyricLine(
                 indication = null,
                 onClick = onLineClick
             )
-            .padding(vertical = 4.dp, horizontal = 8.dp)
+            .padding(vertical = 3.dp, horizontal = 4.dp)
     ) {
         if (line.words.isNotEmpty()) {
             // Word-by-word progressive karaoke rendering
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(7.dp),
-                verticalArrangement = Arrangement.spacedBy(3.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 line.words.forEach { wordTiming ->
                     SpicyWordItem(
@@ -466,10 +470,10 @@ fun SpicyLyricLine(
             // Fallback for empty word list
             Text(
                 text = line.text,
-                fontSize = 25.sp,
+                fontSize = 24.sp,
                 fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.SemiBold,
-                color = if (isActive) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 33.sp,
+                color = if (isActive) Color.White else Color.White.copy(alpha = 0.5f),
+                lineHeight = 32.sp,
                 style = if (isActive) {
                     TextStyle(
                         shadow = Shadow(
@@ -535,10 +539,10 @@ fun SpicyWordItem(
         // Layer 1: Base translucent un-sung text
         Text(
             text = wordTiming.word,
-            fontSize = 25.sp,
+            fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.White.copy(alpha = if (isLineActive) 0.35f else 0.28f),
-            lineHeight = 33.sp
+            color = Color.White.copy(alpha = if (isLineActive) 0.35f else 0.25f),
+            lineHeight = 32.sp
         )
 
         // Layer 2: Illuminated active/sung text with hardware-accelerated progressive horizontal wipe
@@ -554,10 +558,10 @@ fun SpicyWordItem(
             ) {
                 Text(
                     text = wordTiming.word,
-                    fontSize = 25.sp,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White,
-                    lineHeight = 33.sp,
+                    lineHeight = 32.sp,
                     style = if (isWordActive) {
                         TextStyle(
                             shadow = Shadow(
@@ -585,7 +589,7 @@ fun SpicyLeadInDots(
 
     val dot1Offset by infiniteTransition.animateFloat(
         initialValue = 0f,
-        targetValue = -10f,
+        targetValue = -8f,
         animationSpec = infiniteRepeatable(
             animation = tween(400, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -595,7 +599,7 @@ fun SpicyLeadInDots(
 
     val dot2Offset by infiniteTransition.animateFloat(
         initialValue = 0f,
-        targetValue = -10f,
+        targetValue = -8f,
         animationSpec = infiniteRepeatable(
             animation = tween(400, delayMillis = 120, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -605,7 +609,7 @@ fun SpicyLeadInDots(
 
     val dot3Offset by infiniteTransition.animateFloat(
         initialValue = 0f,
-        targetValue = -10f,
+        targetValue = -8f,
         animationSpec = infiniteRepeatable(
             animation = tween(400, delayMillis = 240, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -614,7 +618,7 @@ fun SpicyLeadInDots(
     )
 
     val alpha by animateFloatAsState(
-        targetValue = if (isActive) 1.0f else 0.35f,
+        targetValue = if (isActive) 1.0f else 0.30f,
         animationSpec = tween(200),
         label = "dotsAlpha"
     )
@@ -623,14 +627,14 @@ fun SpicyLeadInDots(
         modifier = modifier
             .fillMaxWidth()
             .alpha(alpha)
-            .padding(vertical = 12.dp, horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+            .padding(vertical = 10.dp, horizontal = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .offset(y = if (isActive) dot1Offset.dp else 0.dp)
-                .size(10.dp)
+                .size(8.dp)
                 .scale(if (isActive) 1.2f else 1.0f),
             contentAlignment = Alignment.Center
         ) {
@@ -640,7 +644,7 @@ fun SpicyLeadInDots(
         Box(
             modifier = Modifier
                 .offset(y = if (isActive) dot2Offset.dp else 0.dp)
-                .size(10.dp)
+                .size(8.dp)
                 .scale(if (isActive) 1.2f else 1.0f),
             contentAlignment = Alignment.Center
         ) {
@@ -650,7 +654,7 @@ fun SpicyLeadInDots(
         Box(
             modifier = Modifier
                 .offset(y = if (isActive) dot3Offset.dp else 0.dp)
-                .size(10.dp)
+                .size(8.dp)
                 .scale(if (isActive) 1.2f else 1.0f),
             contentAlignment = Alignment.Center
         ) {

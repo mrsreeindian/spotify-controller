@@ -11,12 +11,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -45,6 +41,9 @@ import androidx.compose.ui.unit.dp
 import com.spotify.controller.data.model.RepeatMode
 import com.spotify.controller.ui.theme.LocalAlbumArtColors
 
+/**
+ * Minimalist playback control bar with Material 3 tonal spot theming.
+ */
 @Composable
 fun PlayerControls(
     isPlaying: Boolean,
@@ -63,59 +62,42 @@ fun PlayerControls(
 
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Shuffle Button
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
+        // Shuffle Button (Minimalist borderless)
+        IconButton(
+            onClick = onShuffleToggle,
+            modifier = Modifier.size(38.dp)
         ) {
-            IconButton(
-                onClick = onShuffleToggle,
-                modifier = Modifier.size(48.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Shuffle,
-                    contentDescription = "Shuffle",
-                    tint = if (isShuffle) {
-                        albumColors.tonalPrimary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    },
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            if (isShuffle) {
-                Box(
-                    modifier = Modifier
-                        .size(4.dp)
-                        .background(albumColors.tonalPrimary, CircleShape)
-                )
-            } else {
-                Spacer(modifier = Modifier.height(4.dp))
-            }
+            Icon(
+                imageVector = Icons.Rounded.Shuffle,
+                contentDescription = "Shuffle",
+                tint = if (isShuffle) albumColors.tonalPrimary else Color.White.copy(alpha = 0.45f),
+                modifier = Modifier.size(20.dp)
+            )
         }
 
-        // Previous Track Button (M3 Tonal Spot container)
+        // Previous Track Button (Refined 44dp tonal circle)
         FilledTonalIconButton(
             onClick = onPrevious,
-            modifier = Modifier.size(54.dp),
+            modifier = Modifier.size(44.dp),
             colors = IconButtonDefaults.filledTonalIconButtonColors(
-                containerColor = albumColors.tonalSecondaryContainer,
-                contentColor = albumColors.tonalOnSecondaryContainer
+                containerColor = Color.White.copy(alpha = 0.12f),
+                contentColor = Color.White
             )
         ) {
             Icon(
                 imageVector = Icons.Rounded.SkipPrevious,
                 contentDescription = "Previous Track",
-                modifier = Modifier.size(30.dp)
+                modifier = Modifier.size(24.dp)
             )
         }
 
-        // Play / Pause Primary Button (Prominent M3 Tonal Primary FAB)
+        // Play / Pause Primary Button (Proportional 58dp M3 Primary FAB)
         FilledIconButton(
             onClick = onPlayPause,
-            modifier = Modifier.size(72.dp),
+            modifier = Modifier.size(58.dp),
             colors = IconButtonDefaults.filledIconButtonColors(
                 containerColor = albumColors.tonalPrimary,
                 contentColor = albumColors.tonalOnPrimary
@@ -124,72 +106,58 @@ fun PlayerControls(
             AnimatedContent(
                 targetState = isPlaying,
                 transitionSpec = {
-                    fadeIn(animationSpec = tween(150)) togetherWith fadeOut(animationSpec = tween(150))
+                    fadeIn(animationSpec = tween(140)) togetherWith fadeOut(animationSpec = tween(140))
                 },
                 label = "playPauseAnimation"
             ) { playing ->
                 Icon(
                     imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                     contentDescription = if (playing) "Pause" else "Play",
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(30.dp)
                 )
             }
         }
 
-        // Next Track Button (M3 Tonal Spot container)
+        // Next Track Button (Refined 44dp tonal circle)
         FilledTonalIconButton(
             onClick = onNext,
-            modifier = Modifier.size(54.dp),
+            modifier = Modifier.size(44.dp),
             colors = IconButtonDefaults.filledTonalIconButtonColors(
-                containerColor = albumColors.tonalSecondaryContainer,
-                contentColor = albumColors.tonalOnSecondaryContainer
+                containerColor = Color.White.copy(alpha = 0.12f),
+                contentColor = Color.White
             )
         ) {
             Icon(
                 imageVector = Icons.Rounded.SkipNext,
                 contentDescription = "Next Track",
-                modifier = Modifier.size(30.dp)
+                modifier = Modifier.size(24.dp)
             )
         }
 
-        // Repeat Mode Button
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            val repeatIcon = when (repeatMode) {
-                RepeatMode.TRACK -> Icons.Rounded.RepeatOne
-                else -> Icons.Rounded.Repeat
-            }
-            val isRepeatActive = repeatMode != RepeatMode.OFF
+        // Repeat Mode Button (Minimalist borderless)
+        val repeatIcon = when (repeatMode) {
+            RepeatMode.TRACK -> Icons.Rounded.RepeatOne
+            else -> Icons.Rounded.Repeat
+        }
+        val isRepeatActive = repeatMode != RepeatMode.OFF
 
-            IconButton(
-                onClick = onRepeatToggle,
-                modifier = Modifier.size(48.dp)
-            ) {
-                Icon(
-                    imageVector = repeatIcon,
-                    contentDescription = "Repeat: $repeatMode",
-                    tint = if (isRepeatActive) {
-                        albumColors.tonalPrimary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    },
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            if (isRepeatActive) {
-                Box(
-                    modifier = Modifier
-                        .size(4.dp)
-                        .background(albumColors.tonalPrimary, CircleShape)
-                )
-            } else {
-                Spacer(modifier = Modifier.height(4.dp))
-            }
+        IconButton(
+            onClick = onRepeatToggle,
+            modifier = Modifier.size(38.dp)
+        ) {
+            Icon(
+                imageVector = repeatIcon,
+                contentDescription = "Repeat: $repeatMode",
+                tint = if (isRepeatActive) albumColors.tonalPrimary else Color.White.copy(alpha = 0.45f),
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
 
+/**
+ * Minimalist, spring-animated Like Button.
+ */
 @Composable
 fun LikeButton(
     isLiked: Boolean,
@@ -211,23 +179,23 @@ fun LikeButton(
         targetValue = if (isLiked) {
             albumColors.tonalPrimary
         } else {
-            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            Color.White.copy(alpha = 0.55f)
         },
-        animationSpec = tween(200),
+        animationSpec = tween(180),
         label = "heartColor"
     )
 
     IconButton(
         onClick = onLikeToggle,
         modifier = modifier
-            .size(44.dp)
+            .size(36.dp)
             .scale(heartScale)
     ) {
         Icon(
             imageVector = if (isLiked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
             contentDescription = if (isLiked) "Unlike" else "Like",
             tint = tintColor,
-            modifier = Modifier.size(26.dp)
+            modifier = Modifier.size(22.dp)
         )
     }
 }

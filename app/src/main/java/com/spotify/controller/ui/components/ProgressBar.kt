@@ -1,13 +1,18 @@
 package com.spotify.controller.ui.components
 
 import android.os.SystemClock
+import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -20,6 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -29,6 +35,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProgressBar(
     isPlaying: Boolean,
@@ -43,7 +50,6 @@ fun ProgressBar(
     var dragPositionMs by remember { mutableFloatStateOf(0f) }
     var interpolatedProgressMs by remember { mutableLongStateOf(progressMs) }
 
-    // Smooth client-side timer for real-time second-by-second updates
     LaunchedEffect(isPlaying, progressMs, lastSyncTimestamp) {
         interpolatedProgressMs = progressMs
         if (isPlaying && lastSyncTimestamp > 0L) {
@@ -75,41 +81,55 @@ fun ProgressBar(
                 onSeek(dragPositionMs.toLong())
             },
             interactionSource = interactionSource,
-            colors = SliderDefaults.colors(
-                thumbColor = albumColors.tonalPrimary,
-                activeTrackColor = albumColors.tonalPrimary,
-                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            ),
-            modifier = Modifier.fillMaxWidth()
+            thumb = {
+                Box(
+                    modifier = Modifier
+                        .size(if (isDragging) 12.dp else 8.dp)
+                        .background(albumColors.tonalPrimary, CircleShape)
+                )
+            },
+            track = { sliderState ->
+                SliderDefaults.Track(
+                    sliderState = sliderState,
+                    modifier = Modifier.height(3.dp),
+                    colors = SliderDefaults.colors(
+                        activeTrackColor = albumColors.tonalPrimary,
+                        inactiveTrackColor = Color.White.copy(alpha = 0.2f)
+                    )
+                )
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp)
         )
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 4.dp),
+                .padding(horizontal = 2.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
                 text = formatDuration(displayProgressMs),
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
                 fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                color = Color.White.copy(alpha = 0.55f)
             )
             Text(
                 text = formatDuration(durationMs),
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
                 fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                color = Color.White.copy(alpha = 0.55f)
             )
         }
     }
 }
 
-private fun formatDuration(millis: Long): String {
-    val totalSeconds = (millis / 1000).coerceAtLeast(0)
+private fun formatDuration(durationMs: Long): String {
+    val totalSeconds = (durationMs / 1000).coerceAtLeast(0)
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
-    return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
+    return String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)
 }

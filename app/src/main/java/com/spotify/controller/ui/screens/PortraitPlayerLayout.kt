@@ -1,40 +1,39 @@
 package com.spotify.controller.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Devices
 import androidx.compose.material.icons.rounded.ScreenRotation
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.sp
 import com.spotify.controller.data.model.Lyrics
 import com.spotify.controller.data.model.PlaybackState
@@ -46,6 +45,10 @@ import com.spotify.controller.ui.components.SpicyLyricsView
 import com.spotify.controller.ui.components.VolumeBar
 import com.spotify.controller.ui.theme.LocalAlbumArtColors
 
+/**
+ * Minimalist, uncluttered Portrait Player Layout.
+ * Features generous breathing room, refined typography, and ultra-sleek controls.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PortraitPlayerLayout(
@@ -71,98 +74,91 @@ fun PortraitPlayerLayout(
     val albumColors = LocalAlbumArtColors.current
     val track = playbackState.track
 
+    val layoutDirection = LocalLayoutDirection.current
+    val cutoutStart = WindowInsets.displayCutout.asPaddingValues().calculateStartPadding(layoutDirection)
+    val safeHorizontalPadding = max(cutoutStart, 24.dp)
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(top = 16.dp, start = 20.dp, end = 20.dp, bottom = 12.dp),
+            .padding(
+                start = safeHorizontalPadding,
+                end = 24.dp,
+                top = 16.dp,
+                bottom = 20.dp
+            ),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // Top App Bar: Device indicator, Orientation Toggle, Settings
+        // Minimal Top Bar: Discreet Device Text & Clean Action Icons
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 8.dp),
+                .padding(bottom = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Active Device Pill
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            // Subtle Device Indicator
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(vertical = 4.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Devices,
-                        contentDescription = "Device",
-                        tint = albumColors.tonalPrimary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = playbackState.deviceName ?: "Spotify Connect",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Rounded.Devices,
+                    contentDescription = "Device",
+                    tint = albumColors.tonalPrimary,
+                    modifier = Modifier.size(15.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = playbackState.deviceName ?: "Spotify Connect",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White.copy(alpha = 0.7f)
+                )
             }
 
-            // Right Action Buttons: Orientation & Settings
+            // Minimalist Action Icons
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Button to change between Landscape and Portrait mode
                 IconButton(
                     onClick = onToggleOrientation,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                            CircleShape
-                        )
+                    modifier = Modifier.size(34.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.ScreenRotation,
                         contentDescription = "Switch to Landscape Mode",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(20.dp)
+                        tint = Color.White.copy(alpha = 0.75f),
+                        modifier = Modifier.size(19.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(4.dp))
 
                 IconButton(
                     onClick = onOpenSettings,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                            CircleShape
-                        )
+                    modifier = Modifier.size(34.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Settings,
                         contentDescription = "Spotify Setup",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(20.dp)
+                        tint = Color.White.copy(alpha = 0.75f),
+                        modifier = Modifier.size(19.dp)
                     )
                 }
             }
         }
 
-        // Center Area: Crossfade between Album Art and Spicy Lyrics
+        // Center Area: Album Art or Full-Screen Spicy Lyrics
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(vertical = 8.dp),
+                .padding(vertical = 4.dp),
             contentAlignment = Alignment.Center
         ) {
             Crossfade(
                 targetState = showLyrics,
-                animationSpec = tween(400),
+                animationSpec = tween(350),
                 label = "artLyricsCrossfade"
             ) { lyricsVisible ->
                 if (lyricsVisible) {
@@ -184,6 +180,7 @@ fun PortraitPlayerLayout(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.fillMaxWidth()
                     ) {
+                        // Pristine Album Art Card
                         AlbumArtCard(
                             albumArtUrl = track?.albumArtUrl,
                             trackTitle = track?.name ?: "",
@@ -191,9 +188,9 @@ fun PortraitPlayerLayout(
                             modifier = Modifier.weight(1f, fill = false)
                         )
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(18.dp))
 
-                        // Track Metadata: Title, Artist, Album, Like
+                        // Compact, Minimal Track Metadata
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -202,29 +199,30 @@ fun PortraitPlayerLayout(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = track?.name ?: "No Track Playing",
-                                    fontSize = 24.sp,
+                                    fontSize = 21.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White,
                                     maxLines = 1,
                                     modifier = Modifier.basicMarquee()
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = track?.artistNames ?: "Connect Spotify to start",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1
-                                )
-                                if (!track?.albumName.isNullOrBlank()) {
-                                    Text(
-                                        text = track.albumName,
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                        maxLines = 1
-                                    )
+                                val subtitleText = when {
+                                    track != null && !track.albumName.isNullOrBlank() ->
+                                        "${track.artistNames} • ${track.albumName}"
+                                    track != null -> track.artistNames
+                                    else -> "Connect Spotify to start"
                                 }
+                                Text(
+                                    text = subtitleText,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Normal,
+                                    color = Color.White.copy(alpha = 0.65f),
+                                    maxLines = 1,
+                                    modifier = Modifier.basicMarquee()
+                                )
                             }
+
+                            Spacer(modifier = Modifier.width(12.dp))
 
                             LikeButton(
                                 isLiked = track?.isLiked == true,
@@ -236,7 +234,7 @@ fun PortraitPlayerLayout(
             }
         }
 
-        // Bottom Section: Progress Bar, M3 Tonal Spot Controls, Volume Bar
+        // Bottom Section: Sleek Scrubber, Minimal Controls, Volume Bar
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -249,7 +247,7 @@ fun PortraitPlayerLayout(
                 onSeek = onSeek
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             PlayerControls(
                 isPlaying = playbackState.isPlaying,
@@ -264,14 +262,12 @@ fun PortraitPlayerLayout(
                 onLikeToggle = onLikeToggle
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             VolumeBar(
                 volumePercent = playbackState.volumePercent,
                 onVolumeChange = onVolumeChange
             )
-
-            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }

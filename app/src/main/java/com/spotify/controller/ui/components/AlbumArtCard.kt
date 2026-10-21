@@ -18,8 +18,6 @@ import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -32,13 +30,15 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.spotify.controller.ui.theme.LocalAlbumArtColors
 
+/**
+ * Minimalist, elegant Album Art Card.
+ * Clean rounded silhouette with soft shadow and tap-to-lyrics feedback.
+ */
 @Composable
 fun AlbumArtCard(
     albumArtUrl: String?,
@@ -51,7 +51,7 @@ fun AlbumArtCard(
     val isPressed by interactionSource.collectIsPressedAsState()
 
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.96f else 1.0f,
+        targetValue = if (isPressed) 0.97f else 1.0f,
         animationSpec = tween(durationMillis = 150),
         label = "albumArtScale"
     )
@@ -62,12 +62,12 @@ fun AlbumArtCard(
             .aspectRatio(1.0f)
             .scale(scale)
             .shadow(
-                elevation = 20.dp,
-                shape = RoundedCornerShape(24.dp),
-                spotColor = albumColors.dominant.copy(alpha = 0.6f),
-                ambientColor = Color.Black
+                elevation = 16.dp,
+                shape = RoundedCornerShape(20.dp),
+                spotColor = albumColors.dominant.copy(alpha = 0.45f),
+                ambientColor = Color.Black.copy(alpha = 0.6f)
             )
-            .clip(RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(20.dp))
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -85,15 +85,15 @@ fun AlbumArtCard(
                 modifier = Modifier.fillMaxSize()
             )
         } else {
-            // Placeholder when idle
+            // Minimal placeholder when idle
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.linearGradient(
                             listOf(
-                                MaterialTheme.colorScheme.surfaceVariant,
-                                MaterialTheme.colorScheme.surface
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
                             )
                         )
                     ),
@@ -102,44 +102,28 @@ fun AlbumArtCard(
                 Icon(
                     imageVector = Icons.Rounded.MusicNote,
                     contentDescription = "Music",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                    modifier = Modifier.size(72.dp)
+                    tint = Color.White.copy(alpha = 0.3f),
+                    modifier = Modifier.size(64.dp)
                 )
             }
         }
 
-        // Tap for Lyrics floating pill badge
-        Surface(
+        // Subtle, elegant micro-cue for lyrics at top-right
+        Box(
             modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp),
-            shape = RoundedCornerShape(20.dp),
-            color = Color.Black.copy(alpha = 0.65f),
-            shadowElevation = 4.dp,
-            onClick = onTap
+                .align(Alignment.TopEnd)
+                .padding(12.dp)
+                .size(28.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color.Black.copy(alpha = 0.35f)),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                androidx.compose.foundation.layout.Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Lyrics,
-                        contentDescription = "Lyrics",
-                        tint = albumColors.tonalPrimary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.size(6.dp))
-                    Text(
-                        text = "Lyrics",
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
+            Icon(
+                imageVector = Icons.Rounded.Lyrics,
+                contentDescription = "Tap for Lyrics",
+                tint = Color.White.copy(alpha = 0.75f),
+                modifier = Modifier.size(16.dp)
+            )
         }
     }
 }
