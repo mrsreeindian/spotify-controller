@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">Spotify Controller</string>
+    <string name="connect_spotify">Connect Spotify</string>
+    <string name="client_id_label">Spotify Client ID</string>
+    <string name="client_secret_label">Spotify Client Secret (Optional)</string>
+    <string name="access_token_label">Developer Access Token (Optional Direct Token)</string>
+    <string name="connect_button">Authorize with Spotify</string>
+    <string name="setup_title">Spotify Developer Setup</string>
+    <string name="setup_subtitle">Control your Spotify playback with time-synced lyrics and dynamic M3 theming.</string>
+    <string name="setup_guide_title">How to get your credentials:</string>
+    <string name="setup_step_1">1. Go to developer.spotify.com/dashboard and log in.</string>
+    <string name="setup_step_2">2. Click \"Create App\" and fill in app name and description.</string>
+    <string name="setup_step_3">3. In App Settings, add Redirect URI: spotifycontroller://callback</string>
+    <string name="setup_step_4">4. Copy the Client ID and paste it here.</string>
+    <string name="no_track_playing">No track currently playing</string>
+    <string name="play_something_on_spotify">Start playing a track on Spotify on any of your devices.</string>
+    <string name="tap_for_lyrics">Tap album art for Spicy Lyrics</string>
+    <string name="lyrics_title">Spicy Lyrics</string>
+    <string name="no_lyrics_found">No synced lyrics found for this track</string>
+    <string name="searching_lyrics">Searching synced lyrics...</string>
+</resources>
