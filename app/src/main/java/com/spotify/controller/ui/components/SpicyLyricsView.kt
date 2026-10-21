@@ -43,7 +43,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Refresh
@@ -203,187 +202,131 @@ fun SpicyLyricsView(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        Column(
+        // Main Lyrics Scroll Area
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
                     start = safeStartPadding, // Comfortably clears camera punch hole
                     end = 20.dp,
-                    top = 10.dp,
-                    bottom = 12.dp
-                )
+                    top = 4.dp,
+                    bottom = 8.dp
+                ),
+            contentAlignment = Alignment.Center
         ) {
-            // Minimal Header Bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.GraphicEq,
-                        contentDescription = "Live Lyrics",
-                        tint = albumColors.tonalPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Spicy Lyrics",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                            if (lyrics.hasWordSync) {
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Surface(
-                                    shape = RoundedCornerShape(4.dp),
-                                    color = albumColors.tonalPrimary.copy(alpha = 0.2f)
-                                ) {
-                                    Text(
-                                        text = "KARAOKE",
-                                        fontSize = 8.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = albumColors.tonalPrimary,
-                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                                    )
-                                }
-                            }
-                        }
+            when {
+                isLoading -> {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = albumColors.tonalPrimary,
+                            modifier = Modifier.size(36.dp),
+                            strokeWidth = 2.5.dp
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
                         Text(
-                            text = "$trackTitle • $artistName",
-                            fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.6f),
-                            maxLines = 1
+                            text = "Loading lyrics...",
+                            color = Color.White.copy(alpha = 0.65f),
+                            fontSize = 13.sp
                         )
                     }
                 }
 
-                // Minimal Close Button
-                IconButton(
-                    onClick = onClose,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Close,
-                        contentDescription = "Close Lyrics",
-                        tint = Color.White.copy(alpha = 0.7f),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
+                lyrics.lines.isEmpty() -> {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.MusicNote,
+                            contentDescription = "No Lyrics",
+                            tint = Color.White.copy(alpha = 0.35f),
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = if (!lyrics.plainLyrics.isNullOrBlank()) {
+                                lyrics.plainLyrics
+                            } else {
+                                "No synchronized lyrics available."
+                            },
+                            color = Color.White.copy(alpha = 0.75f),
+                            fontSize = 14.sp,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 20.sp
+                        )
 
-            // Main Lyrics Scroll Area
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                when {
-                    isLoading -> {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            CircularProgressIndicator(
-                                color = albumColors.tonalPrimary,
-                                modifier = Modifier.size(36.dp),
-                                strokeWidth = 2.5.dp
-                            )
-                            Spacer(modifier = Modifier.height(14.dp))
-                            Text(
-                                text = "Loading lyrics...",
-                                color = Color.White.copy(alpha = 0.65f),
-                                fontSize = 13.sp
-                            )
-                        }
-                    }
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                    lyrics.lines.isEmpty() -> {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                            modifier = Modifier.padding(24.dp)
+                        FilledTonalButton(
+                            onClick = onRetry,
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.MusicNote,
-                                contentDescription = "No Lyrics",
-                                tint = Color.White.copy(alpha = 0.35f),
-                                modifier = Modifier.size(48.dp)
+                                imageVector = Icons.Rounded.Refresh,
+                                contentDescription = "Retry",
+                                modifier = Modifier.size(15.dp)
                             )
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text(
-                                text = if (!lyrics.plainLyrics.isNullOrBlank()) {
-                                    lyrics.plainLyrics
-                                } else {
-                                    "No synchronized lyrics available."
-                                },
-                                color = Color.White.copy(alpha = 0.75f),
-                                fontSize = 14.sp,
-                                textAlign = TextAlign.Center,
-                                lineHeight = 20.sp
-                            )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            FilledTonalButton(
-                                onClick = onRetry,
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Refresh,
-                                    contentDescription = "Retry",
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Retry or Load Demo Track", fontSize = 12.sp)
-                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Retry or Load Demo Track", fontSize = 12.sp)
                         }
                     }
+                }
 
-                    else -> {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(top = 90.dp, bottom = 150.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            itemsIndexed(
-                                items = lyrics.lines,
-                                key = { _, line -> line.id }
-                            ) { index, line ->
-                                val isActive = index == activeIndex
-                                if (line.isDotLine) {
-                                    SpicyLeadInDots(isActive = isActive)
-                                } else {
-                                    SpicyLyricLine(
-                                        line = line,
-                                        isActive = isActive,
-                                        currentPositionMs = if (isActive) liveProgressMs else 0L,
-                                        onLineClick = {
-                                            userScrolled = false
-                                            manualSyncTrigger = SystemClock.elapsedRealtime()
-                                            onSeekTo(line.startTimeMs)
-                                        },
-                                        onWordClick = { wordStartMs ->
-                                            userScrolled = false
-                                            manualSyncTrigger = SystemClock.elapsedRealtime()
-                                            onSeekTo(wordStartMs)
-                                        }
-                                    )
-                                }
+                else -> {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(top = 90.dp, bottom = 150.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        itemsIndexed(
+                            items = lyrics.lines,
+                            key = { _, line -> line.id }
+                        ) { index, line ->
+                            val isActive = index == activeIndex
+                            if (line.isDotLine) {
+                                SpicyLeadInDots(isActive = isActive)
+                            } else {
+                                SpicyLyricLine(
+                                    line = line,
+                                    isActive = isActive,
+                                    currentPositionMs = if (isActive) liveProgressMs else 0L,
+                                    onLineClick = {
+                                        userScrolled = false
+                                        manualSyncTrigger = SystemClock.elapsedRealtime()
+                                        onSeekTo(line.startTimeMs)
+                                    },
+                                    onWordClick = { wordStartMs ->
+                                        userScrolled = false
+                                        manualSyncTrigger = SystemClock.elapsedRealtime()
+                                        onSeekTo(wordStartMs)
+                                    }
+                                )
                             }
                         }
                     }
                 }
             }
+        }
+
+        // Minimal Close Button
+        IconButton(
+            onClick = onClose,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(end = 12.dp, top = 6.dp)
+                .size(34.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Close,
+                contentDescription = "Close Lyrics",
+                tint = Color.White.copy(alpha = 0.7f),
+                modifier = Modifier.size(18.dp)
+            )
         }
 
         // Floating Minimal "Sync" button when user scrolled away
