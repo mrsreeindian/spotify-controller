@@ -115,7 +115,8 @@ fun AlbumArtCard(
                 .padding(16.dp),
             shape = RoundedCornerShape(20.dp),
             color = Color.Black.copy(alpha = 0.65f),
-            shadowElevation = 4.dp
+            shadowElevation = 4.dp,
+            onClick = onTap
         ) {
             Box(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),

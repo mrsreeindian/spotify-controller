@@ -6,18 +6,15 @@ import java.util.regex.Pattern
 
 object LrcParser {
 
-    private val LINE_TIMESTAMP_REGEX = Pattern.compile("""\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?]""")
-    private val WORD_TIMESTAMP_REGEX = Pattern.compile("""<(\d{2}):(\d{2})(?:\.(\d{2,3}))?>([^<]+)""")
+    private val LINE_TIMESTAMP_REGEX = Pattern.compile("""\[(\d{2}):(\d{2})(?:\.(\d{1,3}))?]""")
+    private val WORD_TIMESTAMP_REGEX = Pattern.compile("""<(\d{2}):(\d{2})(?:\.(\d{1,3}))?>([^<]+)""")
 
     /**
      * Parses standard or enhanced LRC lyrics text into structured LyricLine objects.
-     * Example input:
-     * [00:12.34] Never gonna give you up
-     * [00:15.80] <00:15.80>Never <00:16.10>gonna <00:16.45>let <00:16.80>you <00:17.10>down
      */
     fun parse(lrcContent: String): List<LyricLine> {
         val lines = lrcContent.lines()
-        val result = mutableListOf<LyricLine>()
+        val rawEntries = mutableListOf<RawLineEntry>()
         var lineIndex = 0
 
         for (line in lines) {
@@ -30,8 +27,9 @@ object LrcParser {
                 val sec = matcher.group(2)?.toLongOrNull() ?: 0L
                 val msPart = matcher.group(3) ?: "0"
                 val ms = when (msPart.length) {
-                    2 -> msPart.toLongOrNull()?.times(10) ?: 0L
-                    else -> msPart.toLongOrNull() ?: 0L
+                    1 -> (msPart.toLongOrNull() ?: 0L) * 100
+                    2 -> (msPart.toLongOrNull() ?: 0L) * 10
+                    else -> msPart.take(3).toLongOrNull() ?: 0L
                 }
                 val startTimeMs = (min * 60 + sec) * 1000 + ms
                 val rawLyricText = trimmed.substring(matcher.end()).trim()
@@ -44,25 +42,35 @@ object LrcParser {
                     rawLyricText
                 }
 
-                if (cleanText.isNotBlank()) {
-                    result.add(
-                        LyricLine(
-                            id = lineIndex++,
-                            startTimeMs = startTimeMs,
-                            text = cleanText,
-                            words = words
-                        )
-                    )
-                }
+                rawEntries.add(RawLineEntry(startTimeMs, cleanText, words))
             }
         }
 
-        // Sort by start time and compute endTimeMs based on next line's start time
-        result.sortBy { it.startTimeMs }
-        for (i in 0 until result.size) {
-            val current = result[i]
-            val nextStart = if (i + 1 < result.size) result[i + 1].startTimeMs else current.startTimeMs + 4000L
-            result[i] = current.copy(endTimeMs = nextStart)
+        rawEntries.sortBy { it.startTimeMs }
+
+        val result = mutableListOf<LyricLine>()
+        for (i in rawEntries.indices) {
+            val current = rawEntries[i]
+            // If line is empty (e.g. instrumental pause marker [01:23.45]), skip adding as a line
+            // but use it to close the previous line
+            if (current.text.isBlank()) continue
+
+            // Find next non-empty entry or next entry timestamp
+            val nextTimestamp = if (i + 1 < rawEntries.size) {
+                rawEntries[i + 1].startTimeMs
+            } else {
+                current.startTimeMs + 4500L
+            }
+
+            result.add(
+                LyricLine(
+                    id = lineIndex++,
+                    startTimeMs = current.startTimeMs,
+                    endTimeMs = nextTimestamp,
+                    text = current.text,
+                    words = current.words
+                )
+            )
         }
 
         return result
@@ -77,8 +85,9 @@ object LrcParser {
             val sec = matcher.group(2)?.toLongOrNull() ?: 0L
             val msPart = matcher.group(3) ?: "0"
             val ms = when (msPart.length) {
-                2 -> msPart.toLongOrNull()?.times(10) ?: 0L
-                else -> msPart.toLongOrNull() ?: 0L
+                1 -> (msPart.toLongOrNull() ?: 0L) * 100
+                2 -> (msPart.toLongOrNull() ?: 0L) * 10
+                else -> msPart.take(3).toLongOrNull() ?: 0L
             }
             val startMs = (min * 60 + sec) * 1000 + ms
             val word = matcher.group(4)?.trim() ?: ""
@@ -94,11 +103,16 @@ object LrcParser {
             }
         }
 
-        // Fix word end times to match next word's start time
         for (i in 0 until wordList.size - 1) {
             wordList[i] = wordList[i].copy(endTimeMs = wordList[i + 1].startTimeMs)
         }
 
         return wordList
     }
+
+    private data class RawLineEntry(
+        val startTimeMs: Long,
+        val text: String,
+        val words: List<WordTiming>
+    )
 }

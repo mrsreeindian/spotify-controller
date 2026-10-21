@@ -7,6 +7,9 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -50,6 +53,9 @@ class MainActivity : ComponentActivity() {
             setOrientation(mode == "landscape")
         }
 
+        // Hide top notification/status bar for full immersion
+        hideSystemBars()
+
         // Handle possible OAuth redirect on initial launch
         handleIntent(intent)
 
@@ -92,8 +98,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun hideSystemBars() {
+        val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
+        windowInsetsController.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        windowInsetsController.hide(WindowInsetsCompat.Type.statusBars())
+    }
+
     override fun onResume() {
         super.onResume()
+        hideSystemBars()
         app.spotifyRepository.startPolling()
     }
 

@@ -34,17 +34,24 @@ data class Lyrics(
     val lines: List<LyricLine> = emptyList(),
     val isSynced: Boolean = false,
     val plainLyrics: String? = null,
-    val provider: String = "LRCLIB"
+    val provider: String = "LRCLIB (Spicy Lyrics Engine)"
 ) {
     fun getActiveLineIndex(currentPositionMs: Long): Int {
         if (lines.isEmpty()) return -1
-        
+        if (currentPositionMs < lines[0].startTimeMs) return -1
+
         for (i in lines.indices.reversed()) {
-            if (currentPositionMs >= lines[i].startTimeMs) {
+            val line = lines[i]
+            if (currentPositionMs >= line.startTimeMs) {
+                // If the line has an endTime and playback has passed it by more than 500ms,
+                // consider it inactive unless it's the very last line
+                if (line.endTimeMs > line.startTimeMs && currentPositionMs > (line.endTimeMs + 500L) && i < lines.size - 1) {
+                    return -1 // Instrumental break
+                }
                 return i
             }
         }
-        return 0
+        return -1
     }
 
     companion object {

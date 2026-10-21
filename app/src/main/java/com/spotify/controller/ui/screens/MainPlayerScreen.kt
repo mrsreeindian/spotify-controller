@@ -52,7 +52,8 @@ fun MainPlayerScreen(
                     onVolumeChange = { vol -> viewModel.setVolume(vol) },
                     onShuffleToggle = { viewModel.toggleShuffle() },
                     onRepeatToggle = { viewModel.cycleRepeatMode() },
-                    onLikeToggle = { viewModel.toggleLike() }
+                    onLikeToggle = { viewModel.toggleLike() },
+                    onRetryLyrics = { viewModel.lyricsViewModel.retry() }
                 )
             } else {
                 PortraitPlayerLayout(
@@ -73,7 +74,8 @@ fun MainPlayerScreen(
                     onVolumeChange = { vol -> viewModel.setVolume(vol) },
                     onShuffleToggle = { viewModel.toggleShuffle() },
                     onRepeatToggle = { viewModel.cycleRepeatMode() },
-                    onLikeToggle = { viewModel.toggleLike() }
+                    onLikeToggle = { viewModel.toggleLike() },
+                    onRetryLyrics = { viewModel.lyricsViewModel.retry() }
                 )
             }
 

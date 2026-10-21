@@ -1,5 +1,6 @@
 package com.spotify.controller.ui.components
 
+import android.os.SystemClock
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -18,16 +19,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -37,7 +41,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -50,32 +56,52 @@ import androidx.compose.ui.unit.sp
 import com.spotify.controller.data.model.LyricLine
 import com.spotify.controller.data.model.Lyrics
 import com.spotify.controller.ui.theme.LocalAlbumArtColors
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 @Composable
 fun SpicyLyricsView(
     lyrics: Lyrics,
     isLoading: Boolean,
-    currentPlaybackMs: Long,
+    isPlaying: Boolean,
+    progressMs: Long,
+    lastSyncTimestamp: Long,
+    durationMs: Long,
     trackTitle: String,
     artistName: String,
     onSeekTo: (Long) -> Unit,
+    onRetry: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val albumColors = LocalAlbumArtColors.current
     val listState = rememberLazyListState()
 
-    val activeIndex = remember(lyrics, currentPlaybackMs) {
-        lyrics.getActiveLineIndex(currentPlaybackMs)
+    // Smooth real-time client-side ticker (40ms / 25fps) to drive lyric synchronization
+    var liveProgressMs by remember { mutableLongStateOf(progressMs) }
+    LaunchedEffect(isPlaying, progressMs, lastSyncTimestamp) {
+        liveProgressMs = progressMs
+        if (isPlaying && lastSyncTimestamp > 0L) {
+            while (isActive) {
+                val elapsedSinceSync = SystemClock.elapsedRealtime() - lastSyncTimestamp
+                val current = (progressMs + elapsedSinceSync).coerceIn(0L, durationMs.coerceAtLeast(1L))
+                liveProgressMs = current
+                delay(40L)
+            }
+        }
     }
 
-    // Auto-scroll to center the active line (Spicy Lyrics auto-centering behavior)
+    val activeIndex = remember(lyrics, liveProgressMs) {
+        lyrics.getActiveLineIndex(liveProgressMs)
+    }
+
+    // Auto-scroll to center the active line with smooth physics
     LaunchedEffect(activeIndex) {
         if (activeIndex in lyrics.lines.indices && !listState.isScrollInProgress) {
-            val targetIndex = (activeIndex - 2).coerceAtLeast(0)
+            val targetOffset = -220 // Vertically centers the active lyric line
             listState.animateScrollToItem(
-                index = targetIndex,
-                scrollOffset = 0
+                index = activeIndex,
+                scrollOffset = targetOffset
             )
         }
     }
@@ -89,7 +115,7 @@ fun SpicyLyricsView(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 12.dp, bottom = 8.dp),
+                .padding(top = 8.dp, bottom = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -160,12 +186,12 @@ fun SpicyLyricsView(
                     ) {
                         CircularProgressIndicator(
                             color = albumColors.tonalPrimary,
-                            modifier = Modifier.size(40.dp),
+                            modifier = Modifier.size(42.dp),
                             strokeWidth = 3.dp
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Syncing Spicy Lyrics...",
+                            text = "Syncing with Spicy Lyrics engine...",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 14.sp
                         )
@@ -179,22 +205,38 @@ fun SpicyLyricsView(
                         modifier = Modifier.padding(24.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Album,
+                            imageVector = Icons.Rounded.MusicNote,
                             contentDescription = "No Lyrics",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                             modifier = Modifier.size(56.dp)
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = if (lyrics.plainLyrics != null) {
+                            text = if (!lyrics.plainLyrics.isNullOrBlank()) {
                                 lyrics.plainLyrics
                             } else {
-                                "No synchronized lyrics available for this track."
+                                "No synchronized lyrics found for \"$trackTitle\"."
                             },
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                             fontSize = 15.sp,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            lineHeight = 22.sp
                         )
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        FilledTonalButton(
+                            onClick = onRetry,
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Refresh,
+                                contentDescription = "Retry",
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Retry Search")
+                        }
                     }
                 }
 
@@ -203,8 +245,8 @@ fun SpicyLyricsView(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(top = 80.dp, bottom = 120.dp),
-                        verticalArrangement = Arrangement.spacedBy(18.dp)
+                        contentPadding = PaddingValues(top = 100.dp, bottom = 140.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         itemsIndexed(
                             items = lyrics.lines,
@@ -230,11 +272,8 @@ fun SpicyLyricLineItem(
     isActive: Boolean,
     onLineClick: () -> Unit
 ) {
-    val albumColors = LocalAlbumArtColors.current
-
-    // Smooth spring animations for scale & opacity
     val lineScale by animateFloatAsState(
-        targetValue = if (isActive) 1.05f else 0.98f,
+        targetValue = if (isActive) 1.04f else 0.98f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
@@ -244,7 +283,7 @@ fun SpicyLyricLineItem(
 
     val lineAlpha by animateFloatAsState(
         targetValue = if (isActive) 1.0f else 0.35f,
-        animationSpec = tween(durationMillis = 300),
+        animationSpec = tween(durationMillis = 250),
         label = "lyricAlpha"
     )
 
@@ -254,7 +293,7 @@ fun SpicyLyricLineItem(
         } else {
             MaterialTheme.colorScheme.onSurfaceVariant
         },
-        animationSpec = tween(durationMillis = 250),
+        animationSpec = tween(durationMillis = 200),
         label = "lyricColor"
     )
 
@@ -272,10 +311,10 @@ fun SpicyLyricLineItem(
     ) {
         Text(
             text = line.text,
-            fontSize = if (isActive) 24.sp else 20.sp,
+            fontSize = if (isActive) 26.sp else 20.sp,
             fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.SemiBold,
             color = textColor,
-            lineHeight = if (isActive) 32.sp else 28.sp
+            lineHeight = if (isActive) 34.sp else 28.sp
         )
     }
 }

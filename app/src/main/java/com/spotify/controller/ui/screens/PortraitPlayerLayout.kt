@@ -65,6 +65,7 @@ fun PortraitPlayerLayout(
     onShuffleToggle: () -> Unit,
     onRepeatToggle: () -> Unit,
     onLikeToggle: () -> Unit,
+    onRetryLyrics: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val albumColors = LocalAlbumArtColors.current
@@ -73,8 +74,7 @@ fun PortraitPlayerLayout(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .statusBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .padding(top = 16.dp, start = 20.dp, end = 20.dp, bottom = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
@@ -169,10 +169,14 @@ fun PortraitPlayerLayout(
                     SpicyLyricsView(
                         lyrics = lyrics,
                         isLoading = isLyricsLoading,
-                        currentPlaybackMs = playbackState.getInterpolatedProgress(),
+                        isPlaying = playbackState.isPlaying,
+                        progressMs = playbackState.progressMs,
+                        lastSyncTimestamp = playbackState.lastSyncTimestamp,
+                        durationMs = track?.durationMs ?: 0L,
                         trackTitle = track?.name ?: "Unknown Title",
                         artistName = track?.artistNames ?: "Unknown Artist",
                         onSeekTo = onSeek,
+                        onRetry = onRetryLyrics,
                         onClose = onCloseLyrics
                     )
                 } else {

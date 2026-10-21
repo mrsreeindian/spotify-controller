@@ -67,6 +67,7 @@ fun LandscapePlayerLayout(
     onShuffleToggle: () -> Unit,
     onRepeatToggle: () -> Unit,
     onLikeToggle: () -> Unit,
+    onRetryLyrics: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val albumColors = LocalAlbumArtColors.current
@@ -95,10 +96,14 @@ fun LandscapePlayerLayout(
                     SpicyLyricsView(
                         lyrics = lyrics,
                         isLoading = isLyricsLoading,
-                        currentPlaybackMs = playbackState.getInterpolatedProgress(),
+                        isPlaying = playbackState.isPlaying,
+                        progressMs = playbackState.progressMs,
+                        lastSyncTimestamp = playbackState.lastSyncTimestamp,
+                        durationMs = track?.durationMs ?: 0L,
                         trackTitle = track?.name ?: "Unknown Title",
                         artistName = track?.artistNames ?: "Unknown Artist",
                         onSeekTo = onSeek,
+                        onRetry = onRetryLyrics,
                         onClose = onCloseLyrics
                     )
                 } else {
