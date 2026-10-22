@@ -98,6 +98,14 @@ open class LyricsWidgetProvider : AppWidgetProvider() {
         private var cachedLyrics: Lyrics = Lyrics.EMPTY
         private var cachedAlbumArt: Bitmap? = null
 
+        private fun hasActiveWidgets(context: Context): Boolean {
+            val appWidgetManager = AppWidgetManager.getInstance(context) ?: return false
+            val p1 = appWidgetManager.getAppWidgetIds(ComponentName(context, LyricsWidgetProvider::class.java))
+            if (p1.isNotEmpty()) return true
+            val p2 = appWidgetManager.getAppWidgetIds(ComponentName(context, Lyrics4x4WidgetProvider::class.java))
+            return p2.isNotEmpty()
+        }
+
         /**
          * Starts the background widget ticker that keeps the active lyric line accurately in sync
          * while music is playing. Uses lightweight in-memory line-boundary checks (250ms)
@@ -112,6 +120,12 @@ open class LyricsWidgetProvider : AppWidgetProvider() {
                 var lastHeartbeatTime = 0L
 
                 while (isActive) {
+                    // Performance Guard: If no widgets are placed on launcher, sleep 5s to eliminate idle CPU drain
+                    if (!hasActiveWidgets(app)) {
+                        delay(5000L)
+                        continue
+                    }
+
                     val state = app.spotifyRepository.playbackState.value
                     val track = state.track
                     val now = SystemClock.elapsedRealtime()

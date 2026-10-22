@@ -72,6 +72,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.TextStyle
@@ -148,7 +149,7 @@ fun SpicyLyricsView(
         }
     }
 
-    val activeIndex by remember(lyrics, liveProgressMs) {
+    val activeIndex by remember(lyrics) {
         androidx.compose.runtime.derivedStateOf {
             lyrics.getActiveLineIndex(liveProgressMs)
         }
@@ -461,8 +462,11 @@ fun SpicyLyricLine(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .scale(lineScale)
-            .alpha(lineAlpha)
+            .graphicsLayer {
+                scaleX = lineScale
+                scaleY = lineScale
+                alpha = lineAlpha
+            }
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,

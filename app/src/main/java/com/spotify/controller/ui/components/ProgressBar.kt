@@ -232,22 +232,33 @@ fun ProgressBar(
                 .padding(horizontal = 2.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = formatDuration(displayProgressMs),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                fontFamily = FontFamily.Monospace,
-                color = Color.White.copy(alpha = 0.55f)
-            )
-            Text(
-                text = formatDuration(durationMs),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                fontFamily = FontFamily.Monospace,
-                color = Color.White.copy(alpha = 0.55f)
-            )
+            ProgressTimeLabel(displayProgressMs)
+            ProgressTimeLabel(durationMs)
         }
     }
+}
+
+/**
+ * Isolated time label that only triggers text measurement and recomposition
+ * when the displayed second integer changes (1Hz), eliminating 20fps text layout churn.
+ */
+@Composable
+private fun ProgressTimeLabel(
+    timeMs: Long,
+    modifier: Modifier = Modifier
+) {
+    val secondKey = (timeMs / 1000L).coerceAtLeast(0L)
+    val formatted = remember(secondKey) {
+        formatDuration(secondKey * 1000L)
+    }
+    Text(
+        text = formatted,
+        fontSize = 11.sp,
+        fontWeight = FontWeight.Medium,
+        fontFamily = FontFamily.Monospace,
+        color = Color.White.copy(alpha = 0.55f),
+        modifier = modifier
+    )
 }
 
 private fun formatDuration(durationMs: Long): String {

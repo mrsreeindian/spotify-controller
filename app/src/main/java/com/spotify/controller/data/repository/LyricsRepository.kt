@@ -13,27 +13,28 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.concurrent.ConcurrentHashMap
+import android.util.LruCache
 
 class LyricsRepository(
     private val lrclibApiService: LrclibApiService,
     private val okHttpClient: OkHttpClient
 ) {
-    private val cache = ConcurrentHashMap<String, Lyrics>()
+    // Memory-bounded LRU cache capping memory to 100 recent songs (~2MB max heap)
+    private val cache = LruCache<String, Lyrics>(100)
 
     suspend fun getLyrics(track: Track, spotifyToken: String? = null): Result<Lyrics> = withContext(Dispatchers.IO) {
         if (track.id.isBlank()) {
             return@withContext Result.failure(IllegalArgumentException("Invalid track ID"))
         }
 
-        cache[track.id]?.let {
+        cache.get(track.id)?.let {
             return@withContext Result.success(it)
         }
 
         // Tier 1: Try official Spicy Lyrics Backend (api.spicylyrics.org) if token is available
         if (!spotifyToken.isNullOrBlank()) {
             trySpicyLyricsBackend(track, spotifyToken)?.let { spicyResult ->
-                cache[track.id] = spicyResult
+                cache.put(track.id, spicyResult)
                 return@withContext Result.success(spicyResult)
             }
         }
@@ -66,7 +67,7 @@ class LyricsRepository(
                     hasExactWordSync = isExact
                 )
 
-                cache[track.id] = lyrics
+                cache.put(track.id, lyrics)
                 return@withContext Result.success(lyrics)
             }
         } catch (e: Exception) {
