@@ -9,10 +9,12 @@ import coil.ImageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.spotify.controller.data.model.PlaybackState
+import com.spotify.controller.data.model.PomodoroState
 import com.spotify.controller.data.model.SpotifyCredentials
 import com.spotify.controller.data.remote.SpotifyAuthManager
 import com.spotify.controller.data.repository.CredentialsRepository
 import com.spotify.controller.data.repository.SpotifyRepository
+import com.spotify.controller.domain.PomodoroManager
 import com.spotify.controller.ui.theme.AlbumArtColors
 import com.spotify.controller.ui.theme.PaletteExtractor
 import kotlinx.coroutines.Dispatchers
@@ -46,6 +48,18 @@ class PlayerViewModel(
 
     private val _showSetupDialog = MutableStateFlow(false)
     val showSetupDialog: StateFlow<Boolean> = _showSetupDialog.asStateFlow()
+
+    val pomodoroManager = PomodoroManager(getApplication(), viewModelScope).apply {
+        onWorkSessionCompleted = {
+            if (playbackState.value.isPlaying) {
+                togglePlayPause()
+            }
+        }
+    }
+    val pomodoroState: StateFlow<PomodoroState> = pomodoroManager.state
+
+    private val _showPomodoroDialog = MutableStateFlow(false)
+    val showPomodoroDialog: StateFlow<Boolean> = _showPomodoroDialog.asStateFlow()
 
     private var lastExtractedUrl: String? = null
 
@@ -161,6 +175,46 @@ class PlayerViewModel(
 
     fun closeSetup() {
         _showSetupDialog.value = false
+    }
+
+    fun openPomodoro() {
+        _showPomodoroDialog.value = true
+    }
+
+    fun closePomodoro() {
+        _showPomodoroDialog.value = false
+    }
+
+    fun togglePomodoro() {
+        pomodoroManager.toggleStartPause()
+    }
+
+    fun startPomodoro() {
+        pomodoroManager.start()
+    }
+
+    fun pausePomodoro() {
+        pomodoroManager.pause()
+    }
+
+    fun resetPomodoro() {
+        pomodoroManager.reset()
+    }
+
+    fun skipPomodoroPhase() {
+        pomodoroManager.skipPhase()
+    }
+
+    fun setPomodoroWorkDuration(minutes: Int) {
+        pomodoroManager.setWorkDuration(minutes)
+    }
+
+    fun setPomodoroBreakDuration(minutes: Int) {
+        pomodoroManager.setBreakDuration(minutes)
+    }
+
+    fun setPomodoroAutoPause(enable: Boolean) {
+        pomodoroManager.setAutoPauseSpotifyOnBreak(enable)
     }
 
     fun saveCredentials(clientId: String, clientSecret: String, directDevToken: String) {

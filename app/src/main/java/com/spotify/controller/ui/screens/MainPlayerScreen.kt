@@ -7,6 +7,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import com.spotify.controller.ui.components.PomodoroDialog
 import com.spotify.controller.ui.components.SpicyDynamicBackground
 import com.spotify.controller.ui.theme.SpotifyControllerTheme
 import com.spotify.controller.ui.viewmodel.PlayerViewModel
@@ -23,6 +24,8 @@ fun MainPlayerScreen(
     val isLandscapeLocked by viewModel.isLandscape.collectAsState()
     val showSetupDialog by viewModel.showSetupDialog.collectAsState()
     val credentials by viewModel.credentials.collectAsState()
+    val pomodoroState by viewModel.pomodoroState.collectAsState()
+    val showPomodoroDialog by viewModel.showPomodoroDialog.collectAsState()
 
     val lyrics by viewModel.lyricsViewModel.lyrics.collectAsState()
     val isLyricsLoading by viewModel.lyricsViewModel.isLoading.collectAsState()
@@ -39,6 +42,8 @@ fun MainPlayerScreen(
                     lyrics = lyrics,
                     isLyricsLoading = isLyricsLoading,
                     showLyrics = showLyrics,
+                    pomodoroState = pomodoroState,
+                    onOpenPomodoro = { viewModel.openPomodoro() },
                     onToggleLyrics = { viewModel.toggleLyrics() },
                     onCloseLyrics = { viewModel.setLyricsVisible(false) },
                     onToggleOrientation = {
@@ -61,6 +66,8 @@ fun MainPlayerScreen(
                     lyrics = lyrics,
                     isLyricsLoading = isLyricsLoading,
                     showLyrics = showLyrics,
+                    pomodoroState = pomodoroState,
+                    onOpenPomodoro = { viewModel.openPomodoro() },
                     onToggleLyrics = { viewModel.toggleLyrics() },
                     onCloseLyrics = { viewModel.setLyricsVisible(false) },
                     onToggleOrientation = {
@@ -76,6 +83,21 @@ fun MainPlayerScreen(
                     onRepeatToggle = { viewModel.cycleRepeatMode() },
                     onLikeToggle = { viewModel.toggleLike() },
                     onRetryLyrics = { viewModel.lyricsViewModel.retry() }
+                )
+            }
+
+            // Pomodoro Focus Timer Dialog
+            if (showPomodoroDialog) {
+                PomodoroDialog(
+                    state = pomodoroState,
+                    onStart = { viewModel.startPomodoro() },
+                    onPause = { viewModel.pausePomodoro() },
+                    onReset = { viewModel.resetPomodoro() },
+                    onSkipPhase = { viewModel.skipPomodoroPhase() },
+                    onWorkDurationChange = { mins -> viewModel.setPomodoroWorkDuration(mins) },
+                    onBreakDurationChange = { mins -> viewModel.setPomodoroBreakDuration(mins) },
+                    onAutoPauseChange = { autoPause -> viewModel.setPomodoroAutoPause(autoPause) },
+                    onDismiss = { viewModel.closePomodoro() }
                 )
             }
 

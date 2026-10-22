@@ -37,9 +37,11 @@ import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.sp
 import com.spotify.controller.data.model.Lyrics
 import com.spotify.controller.data.model.PlaybackState
+import com.spotify.controller.data.model.PomodoroState
 import com.spotify.controller.ui.components.AlbumArtCard
 import com.spotify.controller.ui.components.LikeButton
 import com.spotify.controller.ui.components.PlayerControls
+import com.spotify.controller.ui.components.PomodoroTopBarPill
 import com.spotify.controller.ui.components.ProgressBar
 import com.spotify.controller.ui.components.SpicyLyricsView
 import com.spotify.controller.ui.components.VolumeBar
@@ -56,6 +58,8 @@ fun PortraitPlayerLayout(
     lyrics: Lyrics,
     isLyricsLoading: Boolean,
     showLyrics: Boolean,
+    pomodoroState: PomodoroState,
+    onOpenPomodoro: () -> Unit,
     onToggleLyrics: () -> Unit,
     onCloseLyrics: () -> Unit,
     onToggleOrientation: () -> Unit,
@@ -120,6 +124,13 @@ fun PortraitPlayerLayout(
 
             // Minimalist Action Icons
             Row(verticalAlignment = Alignment.CenterVertically) {
+                PomodoroTopBarPill(
+                    state = pomodoroState,
+                    onClick = onOpenPomodoro
+                )
+
+                Spacer(modifier = Modifier.width(6.dp))
+
                 IconButton(
                     onClick = onToggleOrientation,
                     modifier = Modifier.size(34.dp)
