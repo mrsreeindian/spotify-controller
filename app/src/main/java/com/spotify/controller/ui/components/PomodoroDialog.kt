@@ -46,6 +46,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalConfiguration
@@ -614,11 +615,13 @@ private fun SlidersAndSettingsCard(
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         // Auto-pause toggle row
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 3.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -631,7 +634,7 @@ private fun SlidersAndSettingsCard(
             Switch(
                 checked = state.autoPauseSpotifyOnBreak,
                 onCheckedChange = onAutoPauseChange,
-                modifier = Modifier.height(24.dp),
+                modifier = Modifier.scale(0.8f),
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
                     checkedTrackColor = albumPrimary,
@@ -642,10 +645,19 @@ private fun SlidersAndSettingsCard(
         }
 
         Spacer(modifier = Modifier.height(6.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(0.8.dp)
+                .background(Color.White.copy(alpha = 0.08f))
+        )
+        Spacer(modifier = Modifier.height(6.dp))
 
         // Do Not Disturb (DND) toggle row
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 3.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -674,7 +686,7 @@ private fun SlidersAndSettingsCard(
                         onOpenDndSettings()
                     }
                 },
-                modifier = Modifier.height(24.dp),
+                modifier = Modifier.scale(0.8f),
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
                     checkedTrackColor = albumPrimary,
