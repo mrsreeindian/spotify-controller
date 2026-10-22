@@ -27,7 +27,8 @@ import kotlinx.coroutines.launch
  */
 class PomodoroManager(
     private val context: Context? = null,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    val dndManager: DndManager = DndManager(context)
 ) {
     private val _state = MutableStateFlow(PomodoroState())
     val state: StateFlow<PomodoroState> = _state.asStateFlow()
@@ -50,7 +51,19 @@ class PomodoroManager(
             _state.update { it.copy(remainingSeconds = resetSeconds) }
         }
 
-        _state.update { it.copy(status = PomodoroStatus.RUNNING) }
+        // Enable DND during focus work session if configured
+        val dndActive = if (_state.value.phase == PomodoroPhase.WORK && _state.value.enableDndDuringWork) {
+            dndManager.enableDnd()
+        } else {
+            false
+        }
+
+        _state.update {
+            it.copy(
+                status = PomodoroStatus.RUNNING,
+                isDndActive = dndActive
+            )
+        }
 
         tickerJob?.cancel()
         tickerJob = scope.launch(Dispatchers.Default) {
@@ -73,7 +86,8 @@ class PomodoroManager(
 
     fun pause() {
         tickerJob?.cancel()
-        _state.update { it.copy(status = PomodoroStatus.PAUSED) }
+        dndManager.disableDnd()
+        _state.update { it.copy(status = PomodoroStatus.PAUSED, isDndActive = false) }
     }
 
     fun toggleStartPause() {
@@ -86,6 +100,7 @@ class PomodoroManager(
 
     fun reset() {
         tickerJob?.cancel()
+        dndManager.disableDnd()
         _state.update { current ->
             val defaultSeconds = when (current.phase) {
                 PomodoroPhase.WORK -> current.workDurationMinutes * 60
@@ -93,7 +108,8 @@ class PomodoroManager(
             }
             current.copy(
                 status = PomodoroStatus.IDLE,
-                remainingSeconds = defaultSeconds
+                remainingSeconds = defaultSeconds,
+                isDndActive = false
             )
         }
     }
@@ -112,10 +128,21 @@ class PomodoroManager(
             PomodoroPhase.BREAK -> current.breakDurationMinutes * 60
         }
 
+        if (nextPhase == PomodoroPhase.BREAK) {
+            dndManager.disableDnd()
+        }
+
+        val dndActive = if (nextPhase == PomodoroPhase.WORK && current.status == PomodoroStatus.RUNNING && current.enableDndDuringWork) {
+            dndManager.enableDnd()
+        } else {
+            false
+        }
+
         _state.update {
             it.copy(
                 phase = nextPhase,
-                remainingSeconds = nextSeconds
+                remainingSeconds = nextSeconds,
+                isDndActive = dndActive
             )
         }
 
@@ -154,8 +181,28 @@ class PomodoroManager(
         _state.update { it.copy(autoPauseSpotifyOnBreak = enabled) }
     }
 
+    fun setEnableDnd(enabled: Boolean) {
+        _state.update { it.copy(enableDndDuringWork = enabled) }
+        if (!enabled && _state.value.isDndActive) {
+            dndManager.disableDnd()
+            _state.update { it.copy(isDndActive = false) }
+        } else if (enabled && _state.value.isRunning && _state.value.phase == PomodoroPhase.WORK) {
+            val dndSuccess = dndManager.enableDnd()
+            _state.update { it.copy(isDndActive = dndSuccess) }
+        }
+    }
+
+    fun cleanup() {
+        tickerJob?.cancel()
+        dndManager.disableDnd()
+        _state.update { it.copy(isDndActive = false) }
+    }
+
     private fun handlePhaseCompletion() {
         val current = _state.value
+        // Phase is ending, so always disable DND for break or completion
+        dndManager.disableDnd()
+
         if (current.phase == PomodoroPhase.WORK) {
             val newCompletedCount = current.completedSessions + 1
 
@@ -169,7 +216,8 @@ class PomodoroManager(
                         phase = PomodoroPhase.BREAK,
                         remainingSeconds = it.breakDurationMinutes * 60,
                         completedSessions = newCompletedCount,
-                        status = PomodoroStatus.RUNNING
+                        status = PomodoroStatus.RUNNING,
+                        isDndActive = false
                     )
                 }
                 start() // Automatically start the break countdown
@@ -180,7 +228,8 @@ class PomodoroManager(
                         phase = PomodoroPhase.WORK,
                         remainingSeconds = it.workDurationMinutes * 60,
                         completedSessions = newCompletedCount,
-                        status = PomodoroStatus.IDLE
+                        status = PomodoroStatus.IDLE,
+                        isDndActive = false
                     )
                 }
             }
@@ -190,7 +239,8 @@ class PomodoroManager(
                 it.copy(
                     phase = PomodoroPhase.WORK,
                     remainingSeconds = it.workDurationMinutes * 60,
-                    status = PomodoroStatus.IDLE
+                    status = PomodoroStatus.IDLE,
+                    isDndActive = false
                 )
             }
         }

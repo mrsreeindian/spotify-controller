@@ -2,6 +2,7 @@ package com.spotify.controller
 
 import com.spotify.controller.data.model.PomodoroPhase
 import com.spotify.controller.data.model.PomodoroStatus
+import com.spotify.controller.domain.DndManager
 import com.spotify.controller.domain.PomodoroManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -10,6 +11,28 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+
+private class FakeDndManager(var permissionGranted: Boolean = true) : DndManager(null) {
+    var isDndEnabled = false
+    var enableCallCount = 0
+    var disableCallCount = 0
+
+    override val isDndPermissionGranted: Boolean
+        get() = permissionGranted
+
+    override fun enableDnd(): Boolean {
+        if (!permissionGranted) return false
+        isDndEnabled = true
+        enableCallCount++
+        return true
+    }
+
+    override fun disableDnd(): Boolean {
+        isDndEnabled = false
+        disableCallCount++
+        return true
+    }
+}
 
 class PomodoroManagerTest {
 
@@ -118,5 +141,96 @@ class PomodoroManagerTest {
 
         assertEquals("15:00", manager.state.value.formattedTime)
         assertEquals(0f, manager.state.value.progress, 0.01f)
+    }
+
+    @Test
+    fun testDndEnablesOnWorkSessionStartAndDisablesOnPause() {
+        val fakeDnd = FakeDndManager(permissionGranted = true)
+        val manager = PomodoroManager(null, testScope, fakeDnd)
+
+        assertFalse(fakeDnd.isDndEnabled)
+        assertFalse(manager.state.value.isDndActive)
+
+        // Starting work session should activate DND
+        manager.start()
+        assertTrue(fakeDnd.isDndEnabled)
+        assertTrue(manager.state.value.isDndActive)
+        assertEquals(1, fakeDnd.enableCallCount)
+
+        // Pausing should turn off DND
+        manager.pause()
+        assertFalse(fakeDnd.isDndEnabled)
+        assertFalse(manager.state.value.isDndActive)
+        assertEquals(1, fakeDnd.disableCallCount)
+    }
+
+    @Test
+    fun testDndDisablesOnReset() {
+        val fakeDnd = FakeDndManager(permissionGranted = true)
+        val manager = PomodoroManager(null, testScope, fakeDnd)
+
+        manager.start()
+        assertTrue(fakeDnd.isDndEnabled)
+        assertTrue(manager.state.value.isDndActive)
+
+        manager.reset()
+        assertFalse(fakeDnd.isDndEnabled)
+        assertFalse(manager.state.value.isDndActive)
+        assertEquals(1, fakeDnd.disableCallCount)
+    }
+
+    @Test
+    fun testDndDisablesOnSkipToBreak() {
+        val fakeDnd = FakeDndManager(permissionGranted = true)
+        val manager = PomodoroManager(null, testScope, fakeDnd)
+
+        manager.start()
+        assertTrue(fakeDnd.isDndEnabled)
+
+        // Skipping to break should turn off DND
+        manager.skipPhase()
+        assertEquals(PomodoroPhase.BREAK, manager.state.value.phase)
+        assertFalse(fakeDnd.isDndEnabled)
+        assertFalse(manager.state.value.isDndActive)
+    }
+
+    @Test
+    fun testDndNotEnabledIfDisabledInSettings() {
+        val fakeDnd = FakeDndManager(permissionGranted = true)
+        val manager = PomodoroManager(null, testScope, fakeDnd)
+
+        manager.setEnableDnd(false)
+        assertFalse(manager.state.value.enableDndDuringWork)
+
+        manager.start()
+        assertFalse(fakeDnd.isDndEnabled)
+        assertFalse(manager.state.value.isDndActive)
+        assertEquals(0, fakeDnd.enableCallCount)
+    }
+
+    @Test
+    fun testDndNotEnabledIfPermissionNotGranted() {
+        val fakeDnd = FakeDndManager(permissionGranted = false)
+        val manager = PomodoroManager(null, testScope, fakeDnd)
+
+        assertTrue(manager.state.value.enableDndDuringWork)
+
+        manager.start()
+        assertFalse(fakeDnd.isDndEnabled)
+        assertFalse(manager.state.value.isDndActive)
+        assertEquals(0, fakeDnd.enableCallCount)
+    }
+
+    @Test
+    fun testCleanupDisablesDnd() {
+        val fakeDnd = FakeDndManager(permissionGranted = true)
+        val manager = PomodoroManager(null, testScope, fakeDnd)
+
+        manager.start()
+        assertTrue(fakeDnd.isDndEnabled)
+
+        manager.cleanup()
+        assertFalse(fakeDnd.isDndEnabled)
+        assertFalse(manager.state.value.isDndActive)
     }
 }

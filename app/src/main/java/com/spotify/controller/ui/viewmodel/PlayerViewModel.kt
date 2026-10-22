@@ -217,6 +217,22 @@ class PlayerViewModel(
         pomodoroManager.setAutoPauseSpotifyOnBreak(enable)
     }
 
+    val isDndPermissionGranted: Boolean
+        get() = pomodoroManager.dndManager.isDndPermissionGranted
+
+    fun openDndSettings() {
+        pomodoroManager.dndManager.openDndSettings()
+    }
+
+    fun setPomodoroEnableDnd(enable: Boolean) {
+        pomodoroManager.setEnableDnd(enable)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        pomodoroManager.cleanup()
+    }
+
     fun saveCredentials(clientId: String, clientSecret: String, directDevToken: String) {
         viewModelScope.launch {
             credentialsRepository.saveClientCredentials(clientId, clientSecret, directDevToken)

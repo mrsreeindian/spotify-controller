@@ -90,6 +90,7 @@ fun MainPlayerScreen(
             if (showPomodoroDialog) {
                 PomodoroDialog(
                     state = pomodoroState,
+                    isDndPermissionGranted = viewModel.isDndPermissionGranted,
                     onStart = { viewModel.startPomodoro() },
                     onPause = { viewModel.pausePomodoro() },
                     onReset = { viewModel.resetPomodoro() },
@@ -97,6 +98,8 @@ fun MainPlayerScreen(
                     onWorkDurationChange = { mins -> viewModel.setPomodoroWorkDuration(mins) },
                     onBreakDurationChange = { mins -> viewModel.setPomodoroBreakDuration(mins) },
                     onAutoPauseChange = { autoPause -> viewModel.setPomodoroAutoPause(autoPause) },
+                    onEnableDndChange = { enable -> viewModel.setPomodoroEnableDnd(enable) },
+                    onOpenDndSettings = { viewModel.openDndSettings() },
                     onDismiss = { viewModel.closePomodoro() }
                 )
             }

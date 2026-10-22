@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Coffee
+import androidx.compose.material.icons.rounded.DoNotDisturbOn
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
@@ -116,6 +117,15 @@ fun PomodoroTopBarPill(
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace
             )
+            if (state.isDndActive) {
+                Spacer(modifier = Modifier.width(3.dp))
+                Icon(
+                    imageVector = Icons.Rounded.DoNotDisturbOn,
+                    contentDescription = "DND Active",
+                    tint = phaseColor,
+                    modifier = Modifier.size(11.dp)
+                )
+            }
             if (state.isPaused) {
                 Spacer(modifier = Modifier.width(3.dp))
                 Text(
@@ -135,6 +145,7 @@ fun PomodoroTopBarPill(
 @Composable
 fun PomodoroDialog(
     state: PomodoroState,
+    isDndPermissionGranted: Boolean = false,
     onStart: () -> Unit,
     onPause: () -> Unit,
     onReset: () -> Unit,
@@ -142,6 +153,8 @@ fun PomodoroDialog(
     onWorkDurationChange: (Int) -> Unit,
     onBreakDurationChange: (Int) -> Unit,
     onAutoPauseChange: (Boolean) -> Unit,
+    onEnableDndChange: (Boolean) -> Unit = {},
+    onOpenDndSettings: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val albumColors = LocalAlbumArtColors.current
@@ -214,9 +227,12 @@ fun PomodoroDialog(
                         SlidersAndSettingsCard(
                             state = state,
                             albumPrimary = albumColors.tonalPrimary,
+                            isDndPermissionGranted = isDndPermissionGranted,
                             onWorkDurationChange = onWorkDurationChange,
                             onBreakDurationChange = onBreakDurationChange,
-                            onAutoPauseChange = onAutoPauseChange
+                            onAutoPauseChange = onAutoPauseChange,
+                            onEnableDndChange = onEnableDndChange,
+                            onOpenDndSettings = onOpenDndSettings
                         )
                     }
                 }
@@ -257,9 +273,12 @@ fun PomodoroDialog(
                     SlidersAndSettingsCard(
                         state = state,
                         albumPrimary = albumColors.tonalPrimary,
+                        isDndPermissionGranted = isDndPermissionGranted,
                         onWorkDurationChange = onWorkDurationChange,
                         onBreakDurationChange = onBreakDurationChange,
-                        onAutoPauseChange = onAutoPauseChange
+                        onAutoPauseChange = onAutoPauseChange,
+                        onEnableDndChange = onEnableDndChange,
+                        onOpenDndSettings = onOpenDndSettings
                     )
                 }
             }
@@ -381,6 +400,28 @@ private fun CountdownRing(
                 fontSize = 10.sp,
                 color = Color.White.copy(alpha = 0.55f)
             )
+
+            if (state.isDndActive) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.DoNotDisturbOn,
+                        contentDescription = "DND Active",
+                        tint = activeColor,
+                        modifier = Modifier.size(10.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = "DND ON",
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = activeColor
+                    )
+                }
+            }
         }
     }
 }
@@ -455,9 +496,12 @@ private fun ActionControls(
 private fun SlidersAndSettingsCard(
     state: PomodoroState,
     albumPrimary: Color,
+    isDndPermissionGranted: Boolean,
     onWorkDurationChange: (Int) -> Unit,
     onBreakDurationChange: (Int) -> Unit,
-    onAutoPauseChange: (Boolean) -> Unit
+    onAutoPauseChange: (Boolean) -> Unit,
+    onEnableDndChange: (Boolean) -> Unit,
+    onOpenDndSettings: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -587,6 +631,49 @@ private fun SlidersAndSettingsCard(
             Switch(
                 checked = state.autoPauseSpotifyOnBreak,
                 onCheckedChange = onAutoPauseChange,
+                modifier = Modifier.height(24.dp),
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = albumPrimary,
+                    uncheckedThumbColor = Color.White.copy(alpha = 0.5f),
+                    uncheckedTrackColor = Color.White.copy(alpha = 0.15f)
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Do Not Disturb (DND) toggle row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                Text(
+                    text = "Do Not Disturb (DND)",
+                    fontSize = 11.sp,
+                    color = Color.White.copy(alpha = 0.75f)
+                )
+                if (state.enableDndDuringWork && !isDndPermissionGranted) {
+                    Text(
+                        text = "Grant DND permission",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFFFB74D),
+                        modifier = Modifier.clickable { onOpenDndSettings() }
+                    )
+                }
+            }
+
+            Switch(
+                checked = state.enableDndDuringWork,
+                onCheckedChange = { enable ->
+                    onEnableDndChange(enable)
+                    if (enable && !isDndPermissionGranted) {
+                        onOpenDndSettings()
+                    }
+                },
                 modifier = Modifier.height(24.dp),
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,

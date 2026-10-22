@@ -18,6 +18,8 @@ data class PomodoroState(
     val breakDurationMinutes: Int = 5,
     val remainingSeconds: Int = 25 * 60,
     val autoPauseSpotifyOnBreak: Boolean = true,
+    val enableDndDuringWork: Boolean = true,
+    val isDndActive: Boolean = false,
     val completedSessions: Int = 0
 ) {
     val totalPhaseSeconds: Int
