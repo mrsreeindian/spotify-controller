@@ -13,5 +13,6 @@ data class QuickPlayItem(
     val subtitle: String,
     val imageUrl: String?,
     val uri: String,
-    val type: QuickPlayType
+    val type: QuickPlayType,
+    val trackUris: List<String>? = null
 )

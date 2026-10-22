@@ -65,5 +65,17 @@ class SpotifyDeviceAndQuickPlayTest {
         assertEquals("On Repeat", onRepeat.title)
         assertEquals(QuickPlayType.ON_REPEAT, onRepeat.type)
         assertEquals("spotify:playlist:37i9dQZF1EP6YuccBxUcC1", onRepeat.uri)
+
+        val topTracksItem = QuickPlayItem(
+            id = "top_tracks",
+            title = "On Repeat",
+            subtitle = "Your top repeated songs • 2 tracks",
+            imageUrl = null,
+            uri = "spotify:track:abc",
+            type = QuickPlayType.ON_REPEAT,
+            trackUris = listOf("spotify:track:abc", "spotify:track:def")
+        )
+        assertEquals(2, topTracksItem.trackUris?.size)
+        assertEquals("spotify:track:abc", topTracksItem.trackUris?.get(0))
     }
 }

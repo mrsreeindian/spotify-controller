@@ -297,12 +297,19 @@ class SpotifyApiService(private val client: OkHttpClient) {
         }
     }
 
-    suspend fun playContext(token: String, contextUri: String, deviceId: String? = null): Boolean = withContext(Dispatchers.IO) {
+    suspend fun playContext(
+        token: String,
+        contextUri: String,
+        trackUris: List<String>? = null,
+        deviceId: String? = null
+    ): Boolean = withContext(Dispatchers.IO) {
         try {
             val payload = JSONObject().apply {
-                if (contextUri.startsWith("spotify:track:")) {
+                if (!trackUris.isNullOrEmpty()) {
+                    put("uris", JSONArray(trackUris))
+                } else if (contextUri.startsWith("spotify:track:")) {
                     put("uris", JSONArray().put(contextUri))
-                } else {
+                } else if (contextUri.isNotBlank()) {
                     put("context_uri", contextUri)
                 }
             }
@@ -318,7 +325,22 @@ class SpotifyApiService(private val client: OkHttpClient) {
                 .build()
 
             val response = client.newCall(request).execute()
-            response.isSuccessful || response.code == 204
+            if (response.isSuccessful || response.code == 204) {
+                return@withContext true
+            }
+
+            // If 404 (e.g. specified device is inactive), retry without device_id query param
+            if (response.code == 404 && !deviceId.isNullOrBlank()) {
+                val fallbackReq = Request.Builder()
+                    .url("$BASE_URL/me/player/play")
+                    .header("Authorization", "Bearer $token")
+                    .put(body)
+                    .build()
+                val fallbackResp = client.newCall(fallbackReq).execute()
+                return@withContext fallbackResp.isSuccessful || fallbackResp.code == 204
+            }
+
+            false
         } catch (e: Exception) {
             false
         }
@@ -326,63 +348,82 @@ class SpotifyApiService(private val client: OkHttpClient) {
 
     suspend fun getRecentlyPlayed(token: String): List<QuickPlayItem> = withContext(Dispatchers.IO) {
         try {
-            // 1. Locate or construct On Repeat item
             var onRepeatItem: QuickPlayItem? = null
+            val userPlaylists = mutableListOf<QuickPlayItem>()
+            val userPlaylistsMap = mutableMapOf<String, QuickPlayItem>()
+
+            // 1. Fetch user's own playlists (up to 100 items)
             try {
-                val playlistsReq = Request.Builder()
-                    .url("$BASE_URL/me/playlists?limit=50")
-                    .header("Authorization", "Bearer $token")
-                    .get()
-                    .build()
-                val plResp = client.newCall(playlistsReq).execute()
-                if (plResp.isSuccessful) {
+                for (offset in listOf(0, 50)) {
+                    val playlistsReq = Request.Builder()
+                        .url("$BASE_URL/me/playlists?limit=50&offset=$offset")
+                        .header("Authorization", "Bearer $token")
+                        .get()
+                        .build()
+                    val plResp = client.newCall(playlistsReq).execute()
+                    if (!plResp.isSuccessful) break
+
                     val plBody = plResp.body?.string() ?: ""
                     val plJson = JSONObject(plBody)
-                    val items = plJson.optJSONArray("items")
-                    if (items != null) {
-                        for (i in 0 until items.length()) {
-                            val pl = items.getJSONObject(i)
-                            val name = pl.optString("name", "")
-                            if (name.contains("on repeat", ignoreCase = true)) {
-                                val id = pl.optString("id", "")
-                                val uri = pl.optString("uri", "spotify:playlist:$id")
-                                val imgArr = pl.optJSONArray("images")
-                                val imgUrl = if (imgArr != null && imgArr.length() > 0) {
-                                    imgArr.getJSONObject(0).optString("url")
-                                } else null
+                    val items = plJson.optJSONArray("items") ?: break
+                    if (items.length() == 0) break
+
+                    for (i in 0 until items.length()) {
+                        val pl = items.getJSONObject(i)
+                        val id = pl.optString("id", "")
+                        val name = pl.optString("name", "Playlist")
+                        val uri = pl.optString("uri", "spotify:playlist:$id")
+                        val imgArr = pl.optJSONArray("images")
+                        val imgUrl = if (imgArr != null && imgArr.length() > 0) {
+                            imgArr.getJSONObject(0).optString("url")
+                        } else null
+
+                        val ownerObj = pl.optJSONObject("owner")
+                        val ownerName = ownerObj?.optString("display_name", "") ?: ""
+                        val tracksTotal = pl.optJSONObject("tracks")?.optInt("total", 0) ?: 0
+                        val subtitle = if (ownerName.isNotBlank()) "$ownerName • $tracksTotal tracks" else "$tracksTotal tracks • Playlist"
+
+                        // Check if this is the user's On Repeat playlist
+                        if (name.contains("on repeat", ignoreCase = true)) {
+                            if (onRepeatItem == null) {
                                 onRepeatItem = QuickPlayItem(
                                     id = id,
-                                    title = "On Repeat",
-                                    subtitle = "Your heavy rotation • Playlist",
+                                    title = name,
+                                    subtitle = "Spotify Playlist • Made for You",
                                     imageUrl = imgUrl,
                                     uri = uri,
                                     type = QuickPlayType.ON_REPEAT
                                 )
-                                break
                             }
+                        } else {
+                            val playlistItem = QuickPlayItem(
+                                id = uri,
+                                title = name,
+                                subtitle = subtitle,
+                                imageUrl = imgUrl,
+                                uri = uri,
+                                type = QuickPlayType.PLAYLIST
+                            )
+                            userPlaylists.add(playlistItem)
+                            userPlaylistsMap[uri] = playlistItem
                         }
                     }
+
+                    val total = plJson.optInt("total", 0)
+                    if (offset + 50 >= total) break
                 }
             } catch (_: Exception) {}
 
-            if (onRepeatItem == null) {
-                onRepeatItem = QuickPlayItem(
-                    id = "spotify_on_repeat",
-                    title = "On Repeat",
-                    subtitle = "Your heavy rotation • Playlist",
-                    imageUrl = null,
-                    uri = "spotify:playlist:37i9dQZF1EP6YuccBxUcC1",
-                    type = QuickPlayType.ON_REPEAT
-                )
-            }
-
-            // 2. Fetch recently played tracks and extract up to 4 distinct albums/playlists/artists
-            val recentList = mutableListOf<QuickPlayItem>()
-            val seenUris = mutableSetOf(onRepeatItem.uri)
+            // 2. Fetch recently played tracks (to identify recent contexts & build fallback On Repeat)
+            val recentPlaylists = mutableListOf<QuickPlayItem>()
+            val recentAlbumsAndArtists = mutableListOf<QuickPlayItem>()
+            val recentTrackFrequency = mutableMapOf<String, Int>()
+            val recentTrackMap = mutableMapOf<String, Pair<String, String?>>() // uri -> (name, artUrl)
+            val seenUris = mutableSetOf<String>()
 
             try {
                 val req = Request.Builder()
-                    .url("$BASE_URL/me/player/recently-played?limit=30")
+                    .url("$BASE_URL/me/player/recently-played?limit=50")
                     .header("Authorization", "Bearer $token")
                     .get()
                     .build()
@@ -393,9 +434,10 @@ class SpotifyApiService(private val client: OkHttpClient) {
                     val items = json.optJSONArray("items")
                     if (items != null) {
                         for (i in 0 until items.length()) {
-                            if (recentList.size >= 4) break
                             val itemObj = items.getJSONObject(i)
                             val trackObj = itemObj.optJSONObject("track") ?: continue
+                            val trackUri = trackObj.optString("uri")
+                            val trackName = trackObj.optString("name")
                             val albumObj = trackObj.optJSONObject("album")
                             val artistsArr = trackObj.optJSONArray("artists")
                             val primaryArtist = if (artistsArr != null && artistsArr.length() > 0) {
@@ -407,6 +449,13 @@ class SpotifyApiService(private val client: OkHttpClient) {
                                 albumImages.getJSONObject(0).optString("url")
                             } else null
 
+                            if (trackUri.isNotBlank()) {
+                                recentTrackFrequency[trackUri] = (recentTrackFrequency[trackUri] ?: 0) + 1
+                                if (!recentTrackMap.containsKey(trackUri)) {
+                                    recentTrackMap[trackUri] = Pair(trackName, albumArtUrl)
+                                }
+                            }
+
                             val contextObj = itemObj.optJSONObject("context")
                             val contextType = contextObj?.optString("type")
                             val contextUri = contextObj?.optString("uri")
@@ -415,23 +464,29 @@ class SpotifyApiService(private val client: OkHttpClient) {
                                 when (contextType) {
                                     "playlist" -> {
                                         seenUris.add(contextUri)
-                                        recentList.add(
-                                            QuickPlayItem(
-                                                id = contextUri,
-                                                title = albumObj?.optString("name") ?: "Recently Played Playlist",
-                                                subtitle = "$primaryArtist • Playlist",
-                                                imageUrl = albumArtUrl,
-                                                uri = contextUri,
-                                                type = QuickPlayType.PLAYLIST
+                                        // Match against known user playlists if possible to get real name & art
+                                        val matchedPl = userPlaylistsMap[contextUri]
+                                        if (matchedPl != null) {
+                                            recentPlaylists.add(matchedPl)
+                                        } else {
+                                            recentPlaylists.add(
+                                                QuickPlayItem(
+                                                    id = contextUri,
+                                                    title = "Playlist",
+                                                    subtitle = "Recently Played • Playlist",
+                                                    imageUrl = albumArtUrl,
+                                                    uri = contextUri,
+                                                    type = QuickPlayType.PLAYLIST
+                                                )
                                             )
-                                        )
+                                        }
                                     }
                                     "album" -> {
                                         seenUris.add(contextUri)
-                                        recentList.add(
+                                        recentAlbumsAndArtists.add(
                                             QuickPlayItem(
                                                 id = contextUri,
-                                                title = albumObj?.optString("name", "Unknown Album") ?: "Album",
+                                                title = albumObj?.optString("name", "Album") ?: "Album",
                                                 subtitle = "$primaryArtist • Album",
                                                 imageUrl = albumArtUrl,
                                                 uri = contextUri,
@@ -441,7 +496,7 @@ class SpotifyApiService(private val client: OkHttpClient) {
                                     }
                                     "artist" -> {
                                         seenUris.add(contextUri)
-                                        recentList.add(
+                                        recentAlbumsAndArtists.add(
                                             QuickPlayItem(
                                                 id = contextUri,
                                                 title = primaryArtist,
@@ -457,10 +512,10 @@ class SpotifyApiService(private val client: OkHttpClient) {
                                 val albumUri = albumObj.optString("uri")
                                 if (albumUri.isNotBlank() && albumUri !in seenUris) {
                                     seenUris.add(albumUri)
-                                    recentList.add(
+                                    recentAlbumsAndArtists.add(
                                         QuickPlayItem(
                                             id = albumUri,
-                                            title = albumObj.optString("name", "Unknown Album"),
+                                            title = albumObj.optString("name", "Album"),
                                             subtitle = "$primaryArtist • Album",
                                             imageUrl = albumArtUrl,
                                             uri = albumUri,
@@ -474,7 +529,112 @@ class SpotifyApiService(private val client: OkHttpClient) {
                 }
             } catch (_: Exception) {}
 
-            listOf(onRepeatItem) + recentList
+            // 3. If On Repeat was not found in library playlists, generate it from user's top/repeated tracks!
+            if (onRepeatItem == null) {
+                // Attempt A: Spotify Top Tracks API (short_term = last 4 weeks)
+                try {
+                    val topReq = Request.Builder()
+                        .url("$BASE_URL/me/top/tracks?time_range=short_term&limit=30")
+                        .header("Authorization", "Bearer $token")
+                        .get()
+                        .build()
+                    val topResp = client.newCall(topReq).execute()
+                    if (topResp.isSuccessful) {
+                        val topBody = topResp.body?.string() ?: ""
+                        val topJson = JSONObject(topBody)
+                        val items = topJson.optJSONArray("items")
+                        if (items != null && items.length() > 0) {
+                            val trackUris = mutableListOf<String>()
+                            var firstArt: String? = null
+                            for (i in 0 until items.length()) {
+                                val t = items.getJSONObject(i)
+                                val u = t.optString("uri")
+                                if (u.isNotBlank()) trackUris.add(u)
+                                if (firstArt == null) {
+                                    val alb = t.optJSONObject("album")
+                                    val imgs = alb?.optJSONArray("images")
+                                    if (imgs != null && imgs.length() > 0) {
+                                        firstArt = imgs.getJSONObject(0).optString("url")
+                                    }
+                                }
+                            }
+                            if (trackUris.isNotEmpty()) {
+                                onRepeatItem = QuickPlayItem(
+                                    id = "user_top_tracks_repeat",
+                                    title = "On Repeat",
+                                    subtitle = "Your top repeated songs • ${trackUris.size} tracks",
+                                    imageUrl = firstArt,
+                                    uri = trackUris.first(),
+                                    type = QuickPlayType.ON_REPEAT,
+                                    trackUris = trackUris
+                                )
+                            }
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+
+            // Attempt B: If still null, extract top repeated tracks from recent history
+            if (onRepeatItem == null && recentTrackFrequency.isNotEmpty()) {
+                val sortedTracks = recentTrackFrequency.entries
+                    .sortedByDescending { it.value }
+                    .map { it.key }
+                    .take(30)
+
+                val firstArt = recentTrackMap[sortedTracks.firstOrNull()]?.second
+
+                onRepeatItem = QuickPlayItem(
+                    id = "user_recent_frequency_repeat",
+                    title = "On Repeat",
+                    subtitle = "Your heavy rotation • ${sortedTracks.size} tracks",
+                    imageUrl = firstArt,
+                    uri = sortedTracks.firstOrNull() ?: "",
+                    type = QuickPlayType.ON_REPEAT,
+                    trackUris = sortedTracks
+                )
+            }
+
+            // Fallback C: Default safe placeholder if user has zero listening history yet
+            if (onRepeatItem == null) {
+                onRepeatItem = QuickPlayItem(
+                    id = "on_repeat_empty",
+                    title = "On Repeat",
+                    subtitle = "Listen to music to build your On Repeat list",
+                    imageUrl = null,
+                    uri = "",
+                    type = QuickPlayType.ON_REPEAT
+                )
+            }
+
+            // 4. Assemble the Playlists & Recents section:
+            // First: Playlists recently played
+            // Second: User's other playlists from library
+            // Third: Recently played albums and artists
+            val combinedList = mutableListOf<QuickPlayItem>()
+            val addedUris = mutableSetOf(onRepeatItem.uri)
+
+            // Add recent playlists first
+            for (pl in recentPlaylists) {
+                if (addedUris.add(pl.uri)) {
+                    combinedList.add(pl)
+                }
+            }
+
+            // Add remaining user playlists
+            for (pl in userPlaylists) {
+                if (addedUris.add(pl.uri)) {
+                    combinedList.add(pl)
+                }
+            }
+
+            // Add recent albums and artists
+            for (item in recentAlbumsAndArtists) {
+                if (addedUris.add(item.uri)) {
+                    combinedList.add(item)
+                }
+            }
+
+            listOf(onRepeatItem) + combinedList
         } catch (e: Exception) {
             emptyList()
         }

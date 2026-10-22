@@ -33,6 +33,7 @@ class SpotifyAuthManager(
             "user-library-read",
             "user-library-modify",
             "user-read-recently-played",
+            "user-top-read",
             "playlist-read-private",
             "playlist-read-collaborative"
         ).joinToString(" ")

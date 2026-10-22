@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -70,7 +71,8 @@ fun RecentlyPlayedDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
-                .padding(vertical = 16.dp),
+                .heightIn(max = 580.dp)
+                .padding(vertical = 12.dp),
             shape = RoundedCornerShape(24.dp),
             color = Color(0xFF16161E),
             tonalElevation = 6.dp,
@@ -105,13 +107,13 @@ fun RecentlyPlayedDialog(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "Quick Play & Recents",
+                                text = "Playlists & Quick Play",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
                             Text(
-                                text = "Hold album art anytime to reopen",
+                                text = "Tap any playlist or recent item to play",
                                 fontSize = 11.sp,
                                 color = Color.White.copy(alpha = 0.55f)
                             )
@@ -194,7 +196,7 @@ fun RecentlyPlayedDialog(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Recently Played",
+                                        text = "Your Playlists & Recents",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White.copy(alpha = 0.65f)
@@ -230,6 +232,7 @@ private fun OnRepeatFeaturedCard(
     onClick: () -> Unit
 ) {
     val spotifyGreen = Color(0xFF1DB954)
+    val isPlayable = item.uri.isNotBlank() || !item.trackUris.isNullOrEmpty()
 
     Box(
         modifier = Modifier
@@ -238,13 +241,17 @@ private fun OnRepeatFeaturedCard(
             .background(
                 Brush.horizontalGradient(
                     colors = listOf(
-                        spotifyGreen.copy(alpha = 0.22f),
+                        spotifyGreen.copy(alpha = if (isPlayable) 0.22f else 0.08f),
                         Color(0xFF16161E)
                     )
                 )
             )
-            .border(1.dp, spotifyGreen.copy(alpha = 0.45f), RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
+            .border(
+                1.dp,
+                if (isPlayable) spotifyGreen.copy(alpha = 0.45f) else Color.White.copy(alpha = 0.15f),
+                RoundedCornerShape(16.dp)
+            )
+            .clickable(enabled = isPlayable, onClick = onClick)
             .padding(14.dp)
     ) {
         Row(
@@ -255,7 +262,7 @@ private fun OnRepeatFeaturedCard(
                 modifier = Modifier
                     .size(46.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(spotifyGreen.copy(alpha = 0.25f)),
+                    .background(spotifyGreen.copy(alpha = if (isPlayable) 0.25f else 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
                 if (!item.imageUrl.isNullOrBlank()) {
@@ -272,7 +279,7 @@ private fun OnRepeatFeaturedCard(
                     Icon(
                         imageVector = Icons.Rounded.Repeat,
                         contentDescription = "On Repeat",
-                        tint = spotifyGreen,
+                        tint = if (isPlayable) spotifyGreen else Color.White.copy(alpha = 0.4f),
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -285,14 +292,14 @@ private fun OnRepeatFeaturedCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(spotifyGreen)
+                            .background(if (isPlayable) spotifyGreen else Color.White.copy(alpha = 0.2f))
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = "ON REPEAT",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color.Black
+                            color = if (isPlayable) Color.Black else Color.White
                         )
                     }
                 }
@@ -320,13 +327,13 @@ private fun OnRepeatFeaturedCard(
                 modifier = Modifier
                     .size(34.dp)
                     .clip(CircleShape)
-                    .background(spotifyGreen),
+                    .background(if (isPlayable) spotifyGreen else Color.White.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Rounded.PlayArrow,
-                    contentDescription = "Play",
-                    tint = Color.Black,
+                    contentDescription = if (isPlayable) "Play" else "Unavailable",
+                    tint = if (isPlayable) Color.Black else Color.White.copy(alpha = 0.4f),
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -384,14 +391,48 @@ private fun QuickPlayItemRow(
         Spacer(modifier = Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = item.title,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = item.title,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(
+                            when (item.type) {
+                                QuickPlayType.PLAYLIST -> Color(0xFF1DB954).copy(alpha = 0.2f)
+                                QuickPlayType.ALBUM -> Color(0xFF9E9E9E).copy(alpha = 0.2f)
+                                QuickPlayType.ARTIST -> Color(0xFF448AFF).copy(alpha = 0.2f)
+                                else -> Color.White.copy(alpha = 0.1f)
+                            }
+                        )
+                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                ) {
+                    Text(
+                        text = when (item.type) {
+                            QuickPlayType.PLAYLIST -> "Playlist"
+                            QuickPlayType.ALBUM -> "Album"
+                            QuickPlayType.ARTIST -> "Artist"
+                            else -> "Music"
+                        },
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = when (item.type) {
+                            QuickPlayType.PLAYLIST -> Color(0xFF1DB954)
+                            QuickPlayType.ALBUM -> Color.White.copy(alpha = 0.75f)
+                            QuickPlayType.ARTIST -> Color(0xFF82B1FF)
+                            else -> Color.White.copy(alpha = 0.6f)
+                        }
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = item.subtitle,

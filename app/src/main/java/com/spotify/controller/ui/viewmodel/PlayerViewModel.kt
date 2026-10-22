@@ -301,7 +301,7 @@ class PlayerViewModel(
     fun playQuickItem(item: QuickPlayItem) {
         viewModelScope.launch {
             _showQuickPlayDialog.value = false
-            spotifyRepository.playContext(item.uri)
+            spotifyRepository.playContext(item)
         }
     }
 

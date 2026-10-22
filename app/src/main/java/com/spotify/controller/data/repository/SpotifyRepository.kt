@@ -2,6 +2,7 @@ package com.spotify.controller.data.repository
 
 import com.spotify.controller.data.model.PlaybackState
 import com.spotify.controller.data.model.QuickPlayItem
+import com.spotify.controller.data.model.QuickPlayType
 import com.spotify.controller.data.model.RepeatMode
 import com.spotify.controller.data.model.SpotifyCredentials
 import com.spotify.controller.data.model.SpotifyDevice
@@ -190,15 +191,34 @@ class SpotifyRepository(
         return Result.success(items)
     }
 
-    suspend fun playContext(contextUri: String): Result<Unit> {
+    suspend fun playContext(item: QuickPlayItem): Result<Unit> {
         val token = getValidToken() ?: return Result.failure(Exception("Not authenticated"))
-        val success = spotifyApiService.playContext(token, contextUri)
+        val currentDeviceId = _playbackState.value.deviceId
+        val success = spotifyApiService.playContext(
+            token = token,
+            contextUri = item.uri,
+            trackUris = item.trackUris,
+            deviceId = currentDeviceId
+        )
         if (success) {
             delay(500L)
             pollPlaybackState()
             return Result.success(Unit)
         }
         return Result.failure(Exception("Failed to play selected item"))
+    }
+
+    suspend fun playContext(contextUri: String): Result<Unit> {
+        return playContext(
+            QuickPlayItem(
+                id = contextUri,
+                title = "",
+                subtitle = "",
+                imageUrl = null,
+                uri = contextUri,
+                type = QuickPlayType.PLAYLIST
+            )
+        )
     }
 
     suspend fun testConnection(clientId: String, secret: String, directToken: String): Result<String> {
