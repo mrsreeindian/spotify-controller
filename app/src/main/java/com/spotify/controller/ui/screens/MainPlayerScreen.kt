@@ -7,7 +7,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import com.spotify.controller.ui.components.DeviceSelectorDialog
 import com.spotify.controller.ui.components.PomodoroDialog
+import com.spotify.controller.ui.components.RecentlyPlayedDialog
 import com.spotify.controller.ui.components.SpicyDynamicBackground
 import com.spotify.controller.ui.theme.SpotifyControllerTheme
 import com.spotify.controller.ui.viewmodel.PlayerViewModel
@@ -26,6 +28,14 @@ fun MainPlayerScreen(
     val credentials by viewModel.credentials.collectAsState()
     val pomodoroState by viewModel.pomodoroState.collectAsState()
     val showPomodoroDialog by viewModel.showPomodoroDialog.collectAsState()
+
+    val availableDevices by viewModel.availableDevices.collectAsState()
+    val isDevicesLoading by viewModel.isDevicesLoading.collectAsState()
+    val showDeviceDialog by viewModel.showDeviceDialog.collectAsState()
+
+    val recentlyPlayedItems by viewModel.recentlyPlayedItems.collectAsState()
+    val isQuickPlayLoading by viewModel.isQuickPlayLoading.collectAsState()
+    val showQuickPlayDialog by viewModel.showQuickPlayDialog.collectAsState()
 
     val lyrics by viewModel.lyricsViewModel.lyrics.collectAsState()
     val isLyricsLoading by viewModel.lyricsViewModel.isLoading.collectAsState()
@@ -58,7 +68,9 @@ fun MainPlayerScreen(
                     onShuffleToggle = { viewModel.toggleShuffle() },
                     onRepeatToggle = { viewModel.cycleRepeatMode() },
                     onLikeToggle = { viewModel.toggleLike() },
-                    onRetryLyrics = { viewModel.lyricsViewModel.retry() }
+                    onRetryLyrics = { viewModel.lyricsViewModel.retry() },
+                    onOpenDeviceSelector = { viewModel.openDeviceDialog() },
+                    onOpenQuickPlay = { viewModel.openQuickPlayDialog() }
                 )
             } else {
                 PortraitPlayerLayout(
@@ -82,7 +94,31 @@ fun MainPlayerScreen(
                     onShuffleToggle = { viewModel.toggleShuffle() },
                     onRepeatToggle = { viewModel.cycleRepeatMode() },
                     onLikeToggle = { viewModel.toggleLike() },
-                    onRetryLyrics = { viewModel.lyricsViewModel.retry() }
+                    onRetryLyrics = { viewModel.lyricsViewModel.retry() },
+                    onOpenDeviceSelector = { viewModel.openDeviceDialog() },
+                    onOpenQuickPlay = { viewModel.openQuickPlayDialog() }
+                )
+            }
+
+            // Spotify Connect Device Selector Dialog
+            if (showDeviceDialog) {
+                DeviceSelectorDialog(
+                    devices = availableDevices,
+                    isLoading = isDevicesLoading,
+                    onSelectDevice = { deviceId -> viewModel.selectDevice(deviceId) },
+                    onRefresh = { viewModel.refreshDevices() },
+                    onDismiss = { viewModel.closeDeviceDialog() }
+                )
+            }
+
+            // Quick Play / Recently Played & On Repeat Dialog
+            if (showQuickPlayDialog) {
+                RecentlyPlayedDialog(
+                    items = recentlyPlayedItems,
+                    isLoading = isQuickPlayLoading,
+                    onSelectItem = { item -> viewModel.playQuickItem(item) },
+                    onRefresh = { viewModel.refreshRecentlyPlayed() },
+                    onDismiss = { viewModel.closeQuickPlayDialog() }
                 )
             }
 

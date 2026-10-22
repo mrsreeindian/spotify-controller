@@ -2,8 +2,10 @@ package com.spotify.controller.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
@@ -39,12 +41,14 @@ import com.spotify.controller.ui.theme.LocalAlbumArtColors
  * Minimalist, elegant Album Art Card.
  * Clean rounded silhouette with soft shadow and tap-to-lyrics feedback.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AlbumArtCard(
     albumArtUrl: String?,
     trackTitle: String,
     modifier: Modifier = Modifier,
-    onTap: () -> Unit
+    onTap: () -> Unit,
+    onLongPress: (() -> Unit)? = null
 ) {
     val albumColors = LocalAlbumArtColors.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -68,10 +72,11 @@ fun AlbumArtCard(
                 ambientColor = Color.Black.copy(alpha = 0.6f)
             )
             .clip(RoundedCornerShape(20.dp))
-            .clickable(
+            .combinedClickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = onTap
+                onClick = onTap,
+                onLongClick = onLongPress
             )
     ) {
         if (!albumArtUrl.isNullOrBlank()) {

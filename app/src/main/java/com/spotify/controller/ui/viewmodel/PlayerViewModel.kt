@@ -10,7 +10,9 @@ import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.spotify.controller.data.model.PlaybackState
 import com.spotify.controller.data.model.PomodoroState
+import com.spotify.controller.data.model.QuickPlayItem
 import com.spotify.controller.data.model.SpotifyCredentials
+import com.spotify.controller.data.model.SpotifyDevice
 import com.spotify.controller.data.remote.SpotifyAuthManager
 import com.spotify.controller.data.repository.CredentialsRepository
 import com.spotify.controller.data.repository.SpotifyRepository
@@ -60,6 +62,24 @@ class PlayerViewModel(
 
     private val _showPomodoroDialog = MutableStateFlow(false)
     val showPomodoroDialog: StateFlow<Boolean> = _showPomodoroDialog.asStateFlow()
+
+    private val _availableDevices = MutableStateFlow<List<SpotifyDevice>>(emptyList())
+    val availableDevices: StateFlow<List<SpotifyDevice>> = _availableDevices.asStateFlow()
+
+    private val _isDevicesLoading = MutableStateFlow(false)
+    val isDevicesLoading: StateFlow<Boolean> = _isDevicesLoading.asStateFlow()
+
+    private val _showDeviceDialog = MutableStateFlow(false)
+    val showDeviceDialog: StateFlow<Boolean> = _showDeviceDialog.asStateFlow()
+
+    private val _recentlyPlayedItems = MutableStateFlow<List<QuickPlayItem>>(emptyList())
+    val recentlyPlayedItems: StateFlow<List<QuickPlayItem>> = _recentlyPlayedItems.asStateFlow()
+
+    private val _isQuickPlayLoading = MutableStateFlow(false)
+    val isQuickPlayLoading: StateFlow<Boolean> = _isQuickPlayLoading.asStateFlow()
+
+    private val _showQuickPlayDialog = MutableStateFlow(false)
+    val showQuickPlayDialog: StateFlow<Boolean> = _showQuickPlayDialog.asStateFlow()
 
     private var lastExtractedUrl: String? = null
 
@@ -231,6 +251,58 @@ class PlayerViewModel(
     override fun onCleared() {
         super.onCleared()
         pomodoroManager.cleanup()
+    }
+
+    fun openDeviceDialog() {
+        _showDeviceDialog.value = true
+        refreshDevices()
+    }
+
+    fun closeDeviceDialog() {
+        _showDeviceDialog.value = false
+    }
+
+    fun refreshDevices() {
+        viewModelScope.launch {
+            _isDevicesLoading.value = true
+            val res = spotifyRepository.getAvailableDevices()
+            _availableDevices.value = res.getOrDefault(emptyList())
+            _isDevicesLoading.value = false
+        }
+    }
+
+    fun selectDevice(deviceId: String) {
+        viewModelScope.launch {
+            _isDevicesLoading.value = true
+            spotifyRepository.transferPlayback(deviceId)
+            refreshDevices()
+            _showDeviceDialog.value = false
+        }
+    }
+
+    fun openQuickPlayDialog() {
+        _showQuickPlayDialog.value = true
+        refreshRecentlyPlayed()
+    }
+
+    fun closeQuickPlayDialog() {
+        _showQuickPlayDialog.value = false
+    }
+
+    fun refreshRecentlyPlayed() {
+        viewModelScope.launch {
+            _isQuickPlayLoading.value = true
+            val res = spotifyRepository.getRecentlyPlayedQuickList()
+            _recentlyPlayedItems.value = res.getOrDefault(emptyList())
+            _isQuickPlayLoading.value = false
+        }
+    }
+
+    fun playQuickItem(item: QuickPlayItem) {
+        viewModelScope.launch {
+            _showQuickPlayDialog.value = false
+            spotifyRepository.playContext(item.uri)
+        }
     }
 
     fun saveCredentials(clientId: String, clientSecret: String, directDevToken: String) {

@@ -1,8 +1,10 @@
 package com.spotify.controller.data.repository
 
 import com.spotify.controller.data.model.PlaybackState
+import com.spotify.controller.data.model.QuickPlayItem
 import com.spotify.controller.data.model.RepeatMode
 import com.spotify.controller.data.model.SpotifyCredentials
+import com.spotify.controller.data.model.SpotifyDevice
 import com.spotify.controller.data.remote.SpotifyApiService
 import com.spotify.controller.data.remote.SpotifyAuthManager
 import kotlinx.coroutines.CoroutineScope
@@ -163,6 +165,40 @@ class SpotifyRepository(
         if (!success) {
             _playbackState.update { it.copy(track = currentTrack.copy(isLiked = !newLiked)) }
         }
+    }
+
+    suspend fun getAvailableDevices(): Result<List<SpotifyDevice>> {
+        val token = getValidToken() ?: return Result.failure(Exception("Not authenticated"))
+        val devices = spotifyApiService.getAvailableDevices(token)
+        return Result.success(devices)
+    }
+
+    suspend fun transferPlayback(deviceId: String): Result<Unit> {
+        val token = getValidToken() ?: return Result.failure(Exception("Not authenticated"))
+        val success = spotifyApiService.transferPlayback(token, deviceId)
+        if (success) {
+            delay(400L)
+            pollPlaybackState()
+            return Result.success(Unit)
+        }
+        return Result.failure(Exception("Failed to transfer playback to device"))
+    }
+
+    suspend fun getRecentlyPlayedQuickList(): Result<List<QuickPlayItem>> {
+        val token = getValidToken() ?: return Result.failure(Exception("Not authenticated"))
+        val items = spotifyApiService.getRecentlyPlayed(token)
+        return Result.success(items)
+    }
+
+    suspend fun playContext(contextUri: String): Result<Unit> {
+        val token = getValidToken() ?: return Result.failure(Exception("Not authenticated"))
+        val success = spotifyApiService.playContext(token, contextUri)
+        if (success) {
+            delay(500L)
+            pollPlaybackState()
+            return Result.success(Unit)
+        }
+        return Result.failure(Exception("Failed to play selected item"))
     }
 
     suspend fun testConnection(clientId: String, secret: String, directToken: String): Result<String> {

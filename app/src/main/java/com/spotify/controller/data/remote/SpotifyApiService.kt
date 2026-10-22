@@ -2,7 +2,10 @@ package com.spotify.controller.data.remote
 
 import android.os.SystemClock
 import com.spotify.controller.data.model.PlaybackState
+import com.spotify.controller.data.model.QuickPlayItem
+import com.spotify.controller.data.model.QuickPlayType
 import com.spotify.controller.data.model.RepeatMode
+import com.spotify.controller.data.model.SpotifyDevice
 import com.spotify.controller.data.model.Track
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -233,6 +236,247 @@ class SpotifyApiService(private val client: OkHttpClient) {
             response.isSuccessful
         } catch (e: Exception) {
             false
+        }
+    }
+
+    suspend fun getAvailableDevices(token: String): List<SpotifyDevice> = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url("$BASE_URL/me/player/devices")
+                .header("Authorization", "Bearer $token")
+                .get()
+                .build()
+
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) return@withContext emptyList()
+            val body = response.body?.string() ?: return@withContext emptyList()
+            val json = JSONObject(body)
+            val devicesArray = json.optJSONArray("devices") ?: return@withContext emptyList()
+
+            val list = mutableListOf<SpotifyDevice>()
+            for (i in 0 until devicesArray.length()) {
+                val d = devicesArray.getJSONObject(i)
+                val id = d.optString("id", "")
+                if (id.isBlank()) continue
+                list.add(
+                    SpotifyDevice(
+                        id = id,
+                        name = d.optString("name", "Unknown Device"),
+                        type = d.optString("type", "Speaker"),
+                        isActive = d.optBoolean("is_active", false),
+                        isPrivateSession = d.optBoolean("is_private_session", false),
+                        isRestricted = d.optBoolean("is_restricted", false),
+                        volumePercent = d.optInt("volume_percent", 50),
+                        supportsVolume = d.optBoolean("supports_volume", true)
+                    )
+                )
+            }
+            list
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun transferPlayback(token: String, deviceId: String, play: Boolean = true): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val payload = JSONObject().apply {
+                put("device_ids", JSONArray().put(deviceId))
+                put("play", play)
+            }
+            val body = payload.toString().toRequestBody("application/json".toMediaType())
+            val request = Request.Builder()
+                .url("$BASE_URL/me/player")
+                .header("Authorization", "Bearer $token")
+                .put(body)
+                .build()
+
+            val response = client.newCall(request).execute()
+            response.isSuccessful || response.code == 204
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun playContext(token: String, contextUri: String, deviceId: String? = null): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val payload = JSONObject().apply {
+                if (contextUri.startsWith("spotify:track:")) {
+                    put("uris", JSONArray().put(contextUri))
+                } else {
+                    put("context_uri", contextUri)
+                }
+            }
+            val body = payload.toString().toRequestBody("application/json".toMediaType())
+            val urlBuilder = StringBuilder("$BASE_URL/me/player/play")
+            if (!deviceId.isNullOrBlank()) {
+                urlBuilder.append("?device_id=").append(deviceId)
+            }
+            val request = Request.Builder()
+                .url(urlBuilder.toString())
+                .header("Authorization", "Bearer $token")
+                .put(body)
+                .build()
+
+            val response = client.newCall(request).execute()
+            response.isSuccessful || response.code == 204
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun getRecentlyPlayed(token: String): List<QuickPlayItem> = withContext(Dispatchers.IO) {
+        try {
+            // 1. Locate or construct On Repeat item
+            var onRepeatItem: QuickPlayItem? = null
+            try {
+                val playlistsReq = Request.Builder()
+                    .url("$BASE_URL/me/playlists?limit=50")
+                    .header("Authorization", "Bearer $token")
+                    .get()
+                    .build()
+                val plResp = client.newCall(playlistsReq).execute()
+                if (plResp.isSuccessful) {
+                    val plBody = plResp.body?.string() ?: ""
+                    val plJson = JSONObject(plBody)
+                    val items = plJson.optJSONArray("items")
+                    if (items != null) {
+                        for (i in 0 until items.length()) {
+                            val pl = items.getJSONObject(i)
+                            val name = pl.optString("name", "")
+                            if (name.contains("on repeat", ignoreCase = true)) {
+                                val id = pl.optString("id", "")
+                                val uri = pl.optString("uri", "spotify:playlist:$id")
+                                val imgArr = pl.optJSONArray("images")
+                                val imgUrl = if (imgArr != null && imgArr.length() > 0) {
+                                    imgArr.getJSONObject(0).optString("url")
+                                } else null
+                                onRepeatItem = QuickPlayItem(
+                                    id = id,
+                                    title = "On Repeat",
+                                    subtitle = "Your heavy rotation • Playlist",
+                                    imageUrl = imgUrl,
+                                    uri = uri,
+                                    type = QuickPlayType.ON_REPEAT
+                                )
+                                break
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+
+            if (onRepeatItem == null) {
+                onRepeatItem = QuickPlayItem(
+                    id = "spotify_on_repeat",
+                    title = "On Repeat",
+                    subtitle = "Your heavy rotation • Playlist",
+                    imageUrl = null,
+                    uri = "spotify:playlist:37i9dQZF1EP6YuccBxUcC1",
+                    type = QuickPlayType.ON_REPEAT
+                )
+            }
+
+            // 2. Fetch recently played tracks and extract up to 4 distinct albums/playlists/artists
+            val recentList = mutableListOf<QuickPlayItem>()
+            val seenUris = mutableSetOf(onRepeatItem.uri)
+
+            try {
+                val req = Request.Builder()
+                    .url("$BASE_URL/me/player/recently-played?limit=30")
+                    .header("Authorization", "Bearer $token")
+                    .get()
+                    .build()
+                val resp = client.newCall(req).execute()
+                if (resp.isSuccessful) {
+                    val body = resp.body?.string() ?: ""
+                    val json = JSONObject(body)
+                    val items = json.optJSONArray("items")
+                    if (items != null) {
+                        for (i in 0 until items.length()) {
+                            if (recentList.size >= 4) break
+                            val itemObj = items.getJSONObject(i)
+                            val trackObj = itemObj.optJSONObject("track") ?: continue
+                            val albumObj = trackObj.optJSONObject("album")
+                            val artistsArr = trackObj.optJSONArray("artists")
+                            val primaryArtist = if (artistsArr != null && artistsArr.length() > 0) {
+                                artistsArr.getJSONObject(0).optString("name", "Unknown Artist")
+                            } else "Unknown Artist"
+
+                            val albumImages = albumObj?.optJSONArray("images")
+                            val albumArtUrl = if (albumImages != null && albumImages.length() > 0) {
+                                albumImages.getJSONObject(0).optString("url")
+                            } else null
+
+                            val contextObj = itemObj.optJSONObject("context")
+                            val contextType = contextObj?.optString("type")
+                            val contextUri = contextObj?.optString("uri")
+
+                            if (!contextUri.isNullOrBlank() && contextUri !in seenUris) {
+                                when (contextType) {
+                                    "playlist" -> {
+                                        seenUris.add(contextUri)
+                                        recentList.add(
+                                            QuickPlayItem(
+                                                id = contextUri,
+                                                title = albumObj?.optString("name") ?: "Recently Played Playlist",
+                                                subtitle = "$primaryArtist • Playlist",
+                                                imageUrl = albumArtUrl,
+                                                uri = contextUri,
+                                                type = QuickPlayType.PLAYLIST
+                                            )
+                                        )
+                                    }
+                                    "album" -> {
+                                        seenUris.add(contextUri)
+                                        recentList.add(
+                                            QuickPlayItem(
+                                                id = contextUri,
+                                                title = albumObj?.optString("name", "Unknown Album") ?: "Album",
+                                                subtitle = "$primaryArtist • Album",
+                                                imageUrl = albumArtUrl,
+                                                uri = contextUri,
+                                                type = QuickPlayType.ALBUM
+                                            )
+                                        )
+                                    }
+                                    "artist" -> {
+                                        seenUris.add(contextUri)
+                                        recentList.add(
+                                            QuickPlayItem(
+                                                id = contextUri,
+                                                title = primaryArtist,
+                                                subtitle = "Artist",
+                                                imageUrl = albumArtUrl,
+                                                uri = contextUri,
+                                                type = QuickPlayType.ARTIST
+                                            )
+                                        )
+                                    }
+                                }
+                            } else if (albumObj != null) {
+                                val albumUri = albumObj.optString("uri")
+                                if (albumUri.isNotBlank() && albumUri !in seenUris) {
+                                    seenUris.add(albumUri)
+                                    recentList.add(
+                                        QuickPlayItem(
+                                            id = albumUri,
+                                            title = albumObj.optString("name", "Unknown Album"),
+                                            subtitle = "$primaryArtist • Album",
+                                            imageUrl = albumArtUrl,
+                                            uri = albumUri,
+                                            type = QuickPlayType.ALBUM
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+
+            listOf(onRepeatItem) + recentList
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 

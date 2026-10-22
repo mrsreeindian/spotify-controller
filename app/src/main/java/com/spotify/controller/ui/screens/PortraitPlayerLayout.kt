@@ -2,6 +2,8 @@ package com.spotify.controller.ui.screens
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +30,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
@@ -73,6 +77,8 @@ fun PortraitPlayerLayout(
     onRepeatToggle: () -> Unit,
     onLikeToggle: () -> Unit,
     onRetryLyrics: () -> Unit,
+    onOpenDeviceSelector: () -> Unit = {},
+    onOpenQuickPlay: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val albumColors = LocalAlbumArtColors.current
@@ -102,10 +108,14 @@ fun PortraitPlayerLayout(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Subtle Device Indicator
+            // Interactive Device Indicator
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(vertical = 4.dp)
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(onClick = onOpenDeviceSelector)
+                    .background(Color.White.copy(alpha = 0.05f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Devices,
@@ -118,7 +128,7 @@ fun PortraitPlayerLayout(
                     text = playbackState.deviceName ?: "Spotify Connect",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color.White.copy(alpha = 0.7f)
+                    color = Color.White.copy(alpha = 0.85f)
                 )
             }
 
@@ -196,6 +206,7 @@ fun PortraitPlayerLayout(
                             albumArtUrl = track?.albumArtUrl,
                             trackTitle = track?.name ?: "",
                             onTap = onToggleLyrics,
+                            onLongPress = onOpenQuickPlay,
                             modifier = Modifier.weight(1f, fill = false)
                         )
 

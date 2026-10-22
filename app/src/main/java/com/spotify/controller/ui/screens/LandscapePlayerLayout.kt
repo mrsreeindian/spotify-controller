@@ -2,6 +2,8 @@ package com.spotify.controller.ui.screens
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -77,6 +80,8 @@ fun LandscapePlayerLayout(
     onRepeatToggle: () -> Unit,
     onLikeToggle: () -> Unit,
     onRetryLyrics: () -> Unit,
+    onOpenDeviceSelector: () -> Unit = {},
+    onOpenQuickPlay: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val albumColors = LocalAlbumArtColors.current
@@ -135,7 +140,8 @@ fun LandscapePlayerLayout(
                         AlbumArtCard(
                             albumArtUrl = track?.albumArtUrl,
                             trackTitle = track?.name ?: "",
-                            onTap = onToggleLyrics
+                            onTap = onToggleLyrics,
+                            onLongPress = onOpenQuickPlay
                         )
                     }
                 }
@@ -156,8 +162,15 @@ fun LandscapePlayerLayout(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Device Name
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                // Device Name (Interactive Spotify Connect)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onOpenDeviceSelector)
+                        .background(Color.White.copy(alpha = 0.05f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Rounded.Devices,
                         contentDescription = "Device",
@@ -169,7 +182,7 @@ fun LandscapePlayerLayout(
                         text = playbackState.deviceName ?: "Spotify Connect",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color.White.copy(alpha = 0.7f)
+                        color = Color.White.copy(alpha = 0.85f)
                     )
                 }
 
