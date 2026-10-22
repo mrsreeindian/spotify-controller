@@ -8,7 +8,6 @@ import com.spotify.controller.data.model.SpotifyCredentials
 import com.spotify.controller.data.model.SpotifyDevice
 import com.spotify.controller.data.remote.SpotifyApiService
 import com.spotify.controller.data.remote.SpotifyAuthManager
-import com.spotify.controller.data.remote.SpotifyRateLimiter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -54,20 +53,7 @@ class SpotifyRepository(
         if (pollingJob?.isActive == true) return
         pollingJob = appScope.launch(Dispatchers.IO) {
             while (isActive) {
-                if (SpotifyRateLimiter.isRateLimited) {
-                    val waitMs = (SpotifyRateLimiter.remainingSeconds * 1000L).coerceIn(2000L, 60000L)
-                    delay(waitMs)
-                    continue
-                }
-
                 pollPlaybackState()
-
-                if (SpotifyRateLimiter.isRateLimited) {
-                    val waitMs = (SpotifyRateLimiter.remainingSeconds * 1000L).coerceIn(2000L, 60000L)
-                    delay(waitMs)
-                    continue
-                }
-
                 val isPlaying = _playbackState.value.isPlaying
                 val delayMs = if (isPlaying) 3500L else 5000L
                 delay(delayMs)
@@ -88,25 +74,35 @@ class SpotifyRepository(
         val creds = credentials.value
         val token = spotifyAuthManager.refreshTokenIfNeeded(creds) ?: return
 
-        val currentTrackId = _playbackState.value.track?.id?.removePrefix("spotify:track:")?.trim()
-        val now = android.os.SystemClock.elapsedRealtime()
-        val isSameTrack = (!currentTrackId.isNullOrBlank() && currentTrackId == lastLikedTrackId)
-        val shouldCheckLiked = !isSameTrack || (now - lastLikedCheckTimestamp > 30_000L)
+        // 1. Fetch current playback state from /me/player
+        val state = spotifyApiService.getPlaybackState(token) ?: return
+        val currentTrack = state.track
 
-        val cachedLiked = if (isSameTrack && !shouldCheckLiked) lastLikedStatus else null
-        val state = spotifyApiService.getPlaybackState(token, cachedLiked) ?: return
-
-        val stateTrack = state.track
-        if (stateTrack != null && stateTrack.id.isNotBlank()) {
-            val trackId = stateTrack.id.removePrefix("spotify:track:").trim()
-            lastLikedTrackId = trackId
-            lastLikedStatus = stateTrack.isLiked
-            if (shouldCheckLiked) {
-                lastLikedCheckTimestamp = now
-            }
+        if (currentTrack == null || currentTrack.id.isBlank()) {
+            _playbackState.value = state
+            return
         }
 
-        _playbackState.value = state
+        val trackId = currentTrack.id.removePrefix("spotify:track:").trim()
+        val now = android.os.SystemClock.elapsedRealtime()
+
+        // 2. Accurately detect track change or periodic refresh for liked state
+        val isNewTrack = (trackId != lastLikedTrackId)
+        val isCheckExpired = (now - lastLikedCheckTimestamp > 45_000L)
+
+        val isLiked = if (isNewTrack || isCheckExpired) {
+            val freshLiked = spotifyApiService.checkIsLiked(token, trackId)
+            lastLikedTrackId = trackId
+            lastLikedStatus = freshLiked
+            lastLikedCheckTimestamp = now
+            freshLiked
+        } else {
+            lastLikedStatus
+        }
+
+        _playbackState.value = state.copy(
+            track = currentTrack.copy(isLiked = isLiked)
+        )
     }
 
     suspend fun togglePlayPause() {
@@ -198,12 +194,6 @@ class SpotifyRepository(
         val trackId = currentTrack.id.removePrefix("spotify:track:").trim()
         if (trackId.isBlank()) {
             return Result.failure(Exception("Invalid track ID"))
-        }
-
-        if (SpotifyRateLimiter.isRateLimited) {
-            return Result.failure(
-                Exception("Spotify rate limit active. Please wait ${SpotifyRateLimiter.remainingSeconds}s before retrying.")
-            )
         }
 
         val newLiked = !currentTrack.isLiked

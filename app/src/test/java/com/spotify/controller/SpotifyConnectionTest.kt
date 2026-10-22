@@ -98,7 +98,7 @@ class SpotifyConnectionTest {
 
     @Test
     fun `parseSpotifyErrorMessage falls back to descriptive status messages`() {
-        assertEquals("Spotify rate limit reached (429). Please wait a moment.", apiService.parseSpotifyErrorMessage(429, ""))
+        assertEquals("Spotify is temporarily busy. Please try again shortly.", apiService.parseSpotifyErrorMessage(429, ""))
         assertEquals("Spotify server error (502). Please try again later.", apiService.parseSpotifyErrorMessage(502, ""))
         assertEquals("Unauthorized (401). Access token is expired or invalid.", apiService.parseSpotifyErrorMessage(401, "invalid json"))
         assertEquals("Bad Request (400). Please verify token format.", apiService.parseSpotifyErrorMessage(400, ""))
@@ -137,28 +137,5 @@ class SpotifyConnectionTest {
         assertTrue(apiService.setLiked("valid_token", "", true).isFailure)
         assertTrue(apiService.setLiked("valid_token", "   ", false).isFailure)
         assertTrue(apiService.setLiked("valid_token", "spotify:track:", true).isFailure)
-    }
-
-    @Test
-    fun `SpotifyRateLimiter tracks backoff and blocks requests`() = runBlocking {
-        com.spotify.controller.data.remote.SpotifyRateLimiter.reset()
-        assertFalse(com.spotify.controller.data.remote.SpotifyRateLimiter.isRateLimited)
-
-        com.spotify.controller.data.remote.SpotifyRateLimiter.onRateLimit(15L)
-        assertTrue(com.spotify.controller.data.remote.SpotifyRateLimiter.isRateLimited)
-        assertTrue(com.spotify.controller.data.remote.SpotifyRateLimiter.remainingSeconds > 0)
-
-        // setLiked and testConnection fail immediately with rate limit error
-        val likeRes = apiService.setLiked("valid_token", "4iV5W9uYEdYUVa79Axb7Rh", true)
-        assertTrue(likeRes.isFailure)
-        assertTrue(likeRes.exceptionOrNull()?.message?.contains("rate limit", ignoreCase = true) == true)
-
-        val testConnRes = apiService.testConnection("valid_token")
-        assertTrue(testConnRes.isFailure)
-        assertTrue(testConnRes.exceptionOrNull()?.message?.contains("rate limit", ignoreCase = true) == true)
-
-        // Reset clears
-        com.spotify.controller.data.remote.SpotifyRateLimiter.reset()
-        assertFalse(com.spotify.controller.data.remote.SpotifyRateLimiter.isRateLimited)
     }
 }

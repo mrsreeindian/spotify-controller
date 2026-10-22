@@ -178,7 +178,14 @@ class PlayerViewModel(
         viewModelScope.launch {
             val result = spotifyRepository.toggleLike()
             result.onFailure { err ->
-                _toastEvent.emit(err.message ?: "Failed to update Liked Songs")
+                val msg = err.message.orEmpty()
+                // Do not display noisy rate limit or busy warnings to keep user experience smooth
+                if (!msg.contains("429", ignoreCase = true) &&
+                    !msg.contains("rate limit", ignoreCase = true) &&
+                    !msg.contains("busy", ignoreCase = true)
+                ) {
+                    _toastEvent.emit(msg.ifBlank { "Failed to update Liked Songs" })
+                }
             }
         }
     }
