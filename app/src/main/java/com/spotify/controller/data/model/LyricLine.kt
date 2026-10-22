@@ -1,7 +1,9 @@
 package com.spotify.controller.data.model
 
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.Serializable
 
+@Immutable
 @Serializable
 data class WordTiming(
     val word: String,
@@ -24,6 +26,7 @@ data class WordTiming(
     }
 }
 
+@Immutable
 @Serializable
 data class LyricLine(
     val id: Int,

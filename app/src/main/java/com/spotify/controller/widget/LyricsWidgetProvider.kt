@@ -98,7 +98,7 @@ open class LyricsWidgetProvider : AppWidgetProvider() {
         private var cachedLyrics: Lyrics = Lyrics.EMPTY
         private var cachedAlbumArt: Bitmap? = null
 
-        private fun hasActiveWidgets(context: Context): Boolean {
+        fun hasActiveWidgets(context: Context): Boolean {
             val appWidgetManager = AppWidgetManager.getInstance(context) ?: return false
             val p1 = appWidgetManager.getAppWidgetIds(ComponentName(context, LyricsWidgetProvider::class.java))
             if (p1.isNotEmpty()) return true

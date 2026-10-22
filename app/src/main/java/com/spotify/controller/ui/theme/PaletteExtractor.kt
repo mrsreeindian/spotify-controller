@@ -3,11 +3,13 @@ package com.spotify.controller.ui.theme
 import android.graphics.Bitmap
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.graphics.ColorUtils
 import androidx.palette.graphics.Palette
 
+@Immutable
 data class AlbumArtColors(
     val dominant: Color,
     val vibrant: Color,

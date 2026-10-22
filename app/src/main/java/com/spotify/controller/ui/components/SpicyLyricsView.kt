@@ -358,7 +358,7 @@ fun SpicyLyricsView(
                                 SpicyLyricLine(
                                     line = line,
                                     isActive = isActive,
-                                    currentPositionMs = if (isActive) liveProgressMs else 0L,
+                                    currentPositionMs = if (isActive && line.words.isNotEmpty()) liveProgressMs else 0L,
                                     onLineClick = {
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         userScrolled = false

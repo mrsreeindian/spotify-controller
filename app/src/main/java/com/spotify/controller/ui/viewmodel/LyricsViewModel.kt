@@ -33,7 +33,7 @@ class LyricsViewModel(
             return
         }
 
-        if (track.id == currentTrack?.id && _lyrics.value != Lyrics.EMPTY) {
+        if (track.id == currentTrack?.id) {
             return
         }
 

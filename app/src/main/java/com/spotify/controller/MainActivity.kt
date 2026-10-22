@@ -128,6 +128,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
-        app.spotifyRepository.stopPolling()
+        // If no launcher widgets are active, suspend polling to preserve battery
+        if (!com.spotify.controller.widget.LyricsWidgetProvider.hasActiveWidgets(app)) {
+            app.spotifyRepository.stopPolling()
+        }
     }
 }

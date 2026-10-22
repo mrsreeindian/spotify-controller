@@ -11,7 +11,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import okhttp3.Cache
+import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 class SpotifyControllerApp : Application() {
@@ -42,7 +45,12 @@ class SpotifyControllerApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
+        val httpCacheDir = File(cacheDir, "http_cache")
+        val httpCache = Cache(httpCacheDir, 10L * 1024 * 1024) // 10MB HTTP disk cache
+
         okHttpClient = OkHttpClient.Builder()
+            .connectionPool(ConnectionPool(8, 5, TimeUnit.MINUTES))
+            .cache(httpCache)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .writeTimeout(15, TimeUnit.SECONDS)

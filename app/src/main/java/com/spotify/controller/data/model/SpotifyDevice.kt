@@ -1,5 +1,8 @@
 package com.spotify.controller.data.model
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class SpotifyDevice(
     val id: String,
     val name: String,

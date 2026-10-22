@@ -1,5 +1,7 @@
 package com.spotify.controller.data.model
 
+import androidx.compose.runtime.Immutable
+
 enum class PomodoroPhase {
     WORK,
     BREAK
@@ -11,6 +13,7 @@ enum class PomodoroStatus {
     PAUSED
 }
 
+@Immutable
 data class PomodoroState(
     val status: PomodoroStatus = PomodoroStatus.IDLE,
     val phase: PomodoroPhase = PomodoroPhase.WORK,
