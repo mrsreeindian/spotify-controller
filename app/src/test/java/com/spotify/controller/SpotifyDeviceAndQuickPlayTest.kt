@@ -53,29 +53,38 @@ class SpotifyDeviceAndQuickPlayTest {
 
     @Test
     fun testQuickPlayItemModel() {
-        val onRepeat = QuickPlayItem(
-            id = "on_repeat",
-            title = "On Repeat",
-            subtitle = "Spotify Playlist • Made for You",
+        val playlist = QuickPlayItem(
+            id = "playlist_1",
+            title = "Chill Vibes",
+            subtitle = "User • 24 tracks",
             imageUrl = null,
-            uri = "spotify:playlist:37i9dQZF1EP6YuccBxUcC1",
-            type = QuickPlayType.ON_REPEAT
+            uri = "spotify:playlist:123",
+            type = QuickPlayType.PLAYLIST
         )
+        assertEquals("Chill Vibes", playlist.title)
+        assertEquals(QuickPlayType.PLAYLIST, playlist.type)
+        assertEquals("spotify:playlist:123", playlist.uri)
 
-        assertEquals("On Repeat", onRepeat.title)
-        assertEquals(QuickPlayType.ON_REPEAT, onRepeat.type)
-        assertEquals("spotify:playlist:37i9dQZF1EP6YuccBxUcC1", onRepeat.uri)
-
-        val topTracksItem = QuickPlayItem(
-            id = "top_tracks",
-            title = "On Repeat",
-            subtitle = "Your top repeated songs • 2 tracks",
+        val album = QuickPlayItem(
+            id = "album_1",
+            title = "Abbey Road",
+            subtitle = "The Beatles • Album",
             imageUrl = null,
-            uri = "spotify:track:abc",
-            type = QuickPlayType.ON_REPEAT,
-            trackUris = listOf("spotify:track:abc", "spotify:track:def")
+            uri = "spotify:album:456",
+            type = QuickPlayType.ALBUM
         )
-        assertEquals(2, topTracksItem.trackUris?.size)
-        assertEquals("spotify:track:abc", topTracksItem.trackUris?.get(0))
+        assertEquals("Abbey Road", album.title)
+        assertEquals(QuickPlayType.ALBUM, album.type)
+
+        val artist = QuickPlayItem(
+            id = "artist_1",
+            title = "Coldplay",
+            subtitle = "Artist",
+            imageUrl = null,
+            uri = "spotify:artist:789",
+            type = QuickPlayType.ARTIST
+        )
+        assertEquals("Coldplay", artist.title)
+        assertEquals(QuickPlayType.ARTIST, artist.type)
     }
 }

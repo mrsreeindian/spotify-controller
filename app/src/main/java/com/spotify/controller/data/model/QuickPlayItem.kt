@@ -1,7 +1,6 @@
 package com.spotify.controller.data.model
 
 enum class QuickPlayType {
-    ON_REPEAT,
     PLAYLIST,
     ALBUM,
     ARTIST

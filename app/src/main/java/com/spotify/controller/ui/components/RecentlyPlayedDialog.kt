@@ -1,7 +1,6 @@
 package com.spotify.controller.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,7 +24,6 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,7 +33,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -60,9 +57,6 @@ fun RecentlyPlayedDialog(
     onDismiss: () -> Unit
 ) {
     val albumColors = LocalAlbumArtColors.current
-
-    val onRepeatItem = items.firstOrNull { it.type == QuickPlayType.ON_REPEAT }
-    val recentItems = items.filter { it.type != QuickPlayType.ON_REPEAT }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -98,7 +92,7 @@ fun RecentlyPlayedDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.Repeat,
+                                imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
                                 contentDescription = null,
                                 tint = albumColors.tonalPrimary,
                                 modifier = Modifier.size(20.dp)
@@ -107,13 +101,13 @@ fun RecentlyPlayedDialog(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "Playlists & Quick Play",
+                                text = "Playlists & Recents",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
                             Text(
-                                text = "Tap any playlist or recent item to play",
+                                text = "Tap any item to start playback",
                                 fontSize = 11.sp,
                                 color = Color.White.copy(alpha = 0.55f)
                             )
@@ -159,183 +153,48 @@ fun RecentlyPlayedDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                if (items.isEmpty() && isLoading) {
+                if (items.isEmpty()) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 40.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(
-                            color = albumColors.tonalPrimary,
-                            modifier = Modifier.size(32.dp)
-                        )
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                color = albumColors.tonalPrimary,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        } else {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(alpha = 0.3f),
+                                    modifier = Modifier.size(36.dp)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "No playlists or recent music found",
+                                    fontSize = 13.sp,
+                                    color = Color.White.copy(alpha = 0.6f)
+                                )
+                            }
+                        }
                     }
                 } else {
                     LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        // 1. Featured [On Repeat] Card
-                        if (onRepeatItem != null) {
-                            item(key = "on_repeat") {
-                                OnRepeatFeaturedCard(
-                                    item = onRepeatItem,
-                                    onClick = { onSelectItem(onRepeatItem) }
-                                )
-                            }
-                        }
-
-                        // Divider / Section label
-                        if (recentItems.isNotEmpty()) {
-                            item(key = "section_recents") {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 6.dp, bottom = 2.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "Your Playlists & Recents",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White.copy(alpha = 0.65f)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .height(1.dp)
-                                            .background(Color.White.copy(alpha = 0.08f))
-                                    )
-                                }
-                            }
-
-                            // 4 Other Recently Played Items
-                            items(recentItems, key = { it.id }) { item ->
-                                QuickPlayItemRow(
-                                    item = item,
-                                    onClick = { onSelectItem(item) }
-                                )
-                            }
+                        items(items, key = { it.id }) { item ->
+                            QuickPlayItemRow(
+                                item = item,
+                                onClick = { onSelectItem(item) }
+                            )
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun OnRepeatFeaturedCard(
-    item: QuickPlayItem,
-    onClick: () -> Unit
-) {
-    val spotifyGreen = Color(0xFF1DB954)
-    val isPlayable = item.uri.isNotBlank() || !item.trackUris.isNullOrEmpty()
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(
-                Brush.horizontalGradient(
-                    colors = listOf(
-                        spotifyGreen.copy(alpha = if (isPlayable) 0.22f else 0.08f),
-                        Color(0xFF16161E)
-                    )
-                )
-            )
-            .border(
-                1.dp,
-                if (isPlayable) spotifyGreen.copy(alpha = 0.45f) else Color.White.copy(alpha = 0.15f),
-                RoundedCornerShape(16.dp)
-            )
-            .clickable(enabled = isPlayable, onClick = onClick)
-            .padding(14.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(spotifyGreen.copy(alpha = if (isPlayable) 0.25f else 0.12f)),
-                contentAlignment = Alignment.Center
-            ) {
-                if (!item.imageUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(item.imageUrl)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.size(46.dp)
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Rounded.Repeat,
-                        contentDescription = "On Repeat",
-                        tint = if (isPlayable) spotifyGreen else Color.White.copy(alpha = 0.4f),
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(if (isPlayable) spotifyGreen else Color.White.copy(alpha = 0.2f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "ON REPEAT",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = if (isPlayable) Color.Black else Color.White
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(
-                    text = item.title,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = item.subtitle,
-                    fontSize = 11.sp,
-                    color = Color.White.copy(alpha = 0.65f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .background(if (isPlayable) spotifyGreen else Color.White.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.PlayArrow,
-                    contentDescription = if (isPlayable) "Play" else "Unavailable",
-                    tint = if (isPlayable) Color.Black else Color.White.copy(alpha = 0.4f),
-                    modifier = Modifier.size(20.dp)
-                )
             }
         }
     }
@@ -377,7 +236,6 @@ private fun QuickPlayItemRow(
                     QuickPlayType.PLAYLIST -> Icons.AutoMirrored.Rounded.QueueMusic
                     QuickPlayType.ALBUM -> Icons.Rounded.Album
                     QuickPlayType.ARTIST -> Icons.Rounded.Person
-                    else -> Icons.AutoMirrored.Rounded.QueueMusic
                 }
                 Icon(
                     imageVector = icon,
@@ -410,7 +268,6 @@ private fun QuickPlayItemRow(
                                 QuickPlayType.PLAYLIST -> Color(0xFF1DB954).copy(alpha = 0.2f)
                                 QuickPlayType.ALBUM -> Color(0xFF9E9E9E).copy(alpha = 0.2f)
                                 QuickPlayType.ARTIST -> Color(0xFF448AFF).copy(alpha = 0.2f)
-                                else -> Color.White.copy(alpha = 0.1f)
                             }
                         )
                         .padding(horizontal = 5.dp, vertical = 1.dp)
@@ -420,7 +277,6 @@ private fun QuickPlayItemRow(
                             QuickPlayType.PLAYLIST -> "Playlist"
                             QuickPlayType.ALBUM -> "Album"
                             QuickPlayType.ARTIST -> "Artist"
-                            else -> "Music"
                         },
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
@@ -428,7 +284,6 @@ private fun QuickPlayItemRow(
                             QuickPlayType.PLAYLIST -> Color(0xFF1DB954)
                             QuickPlayType.ALBUM -> Color.White.copy(alpha = 0.75f)
                             QuickPlayType.ARTIST -> Color(0xFF82B1FF)
-                            else -> Color.White.copy(alpha = 0.6f)
                         }
                     )
                 }
