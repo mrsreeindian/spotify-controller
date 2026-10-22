@@ -31,15 +31,15 @@ class SpotifyApiService(private val client: OkHttpClient) {
                 .get()
                 .build()
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: ""
-
-            if (response.isSuccessful) {
-                val json = JSONObject(body)
-                val displayName = json.optString("display_name", "Spotify User")
-                Result.success(displayName)
-            } else {
-                Result.failure(Exception("Connection failed (${response.code}): $body"))
+            client.newCall(request).execute().use { response ->
+                val body = response.body?.string() ?: ""
+                if (response.isSuccessful) {
+                    val json = JSONObject(body)
+                    val displayName = json.optString("display_name", "Spotify User")
+                    Result.success(displayName)
+                } else {
+                    Result.failure(Exception("Connection failed (${response.code}): $body"))
+                }
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -54,15 +54,16 @@ class SpotifyApiService(private val client: OkHttpClient) {
                 .get()
                 .build()
 
-            val response = client.newCall(request).execute()
-            if (response.code == 204) {
-                // 204 No Content -> Spotify is not active/playing
-                return@withContext PlaybackState.IDLE
-            }
-            if (!response.isSuccessful) return@withContext null
+            val rawData = client.newCall(request).execute().use { response ->
+                if (response.code == 204) {
+                    // 204 No Content -> Spotify is not active/playing
+                    return@withContext PlaybackState.IDLE
+                }
+                if (!response.isSuccessful) return@withContext null
+                response.body?.string()
+            } ?: return@withContext null
 
-            val body = response.body?.string() ?: return@withContext null
-            val json = JSONObject(body)
+            val json = JSONObject(rawData)
 
             val isPlaying = json.optBoolean("is_playing", false)
             val progressMs = json.optLong("progress_ms", 0L)
@@ -150,8 +151,7 @@ class SpotifyApiService(private val client: OkHttpClient) {
                 .header("Authorization", "Bearer $token")
                 .put(EMPTY_BODY)
                 .build()
-            val response = client.newCall(request).execute()
-            response.isSuccessful
+            client.newCall(request).execute().use { it.isSuccessful }
         } catch (e: Exception) {
             false
         }
@@ -165,8 +165,7 @@ class SpotifyApiService(private val client: OkHttpClient) {
                 .header("Authorization", "Bearer $token")
                 .put(EMPTY_BODY)
                 .build()
-            val response = client.newCall(request).execute()
-            response.isSuccessful
+            client.newCall(request).execute().use { it.isSuccessful }
         } catch (e: Exception) {
             false
         }
@@ -179,8 +178,7 @@ class SpotifyApiService(private val client: OkHttpClient) {
                 .header("Authorization", "Bearer $token")
                 .put(EMPTY_BODY)
                 .build()
-            val response = client.newCall(request).execute()
-            response.isSuccessful
+            client.newCall(request).execute().use { it.isSuccessful }
         } catch (e: Exception) {
             false
         }
@@ -193,8 +191,7 @@ class SpotifyApiService(private val client: OkHttpClient) {
                 .header("Authorization", "Bearer $token")
                 .put(EMPTY_BODY)
                 .build()
-            val response = client.newCall(request).execute()
-            response.isSuccessful
+            client.newCall(request).execute().use { it.isSuccessful }
         } catch (e: Exception) {
             false
         }
@@ -207,11 +204,12 @@ class SpotifyApiService(private val client: OkHttpClient) {
                 .header("Authorization", "Bearer $token")
                 .get()
                 .build()
-            val response = client.newCall(request).execute()
-            if (!response.isSuccessful) return@withContext false
-            val body = response.body?.string() ?: return@withContext false
-            val jsonArr = JSONArray(body)
-            if (jsonArr.length() > 0) jsonArr.getBoolean(0) else false
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext false
+                val body = response.body?.string() ?: return@withContext false
+                val jsonArr = JSONArray(body)
+                if (jsonArr.length() > 0) jsonArr.getBoolean(0) else false
+            }
         } catch (e: Exception) {
             false
         }
@@ -232,8 +230,7 @@ class SpotifyApiService(private val client: OkHttpClient) {
                     .delete(EMPTY_BODY)
                     .build()
             }
-            val response = client.newCall(request).execute()
-            response.isSuccessful
+            client.newCall(request).execute().use { it.isSuccessful }
         } catch (e: Exception) {
             false
         }
@@ -247,31 +244,32 @@ class SpotifyApiService(private val client: OkHttpClient) {
                 .get()
                 .build()
 
-            val response = client.newCall(request).execute()
-            if (!response.isSuccessful) return@withContext emptyList()
-            val body = response.body?.string() ?: return@withContext emptyList()
-            val json = JSONObject(body)
-            val devicesArray = json.optJSONArray("devices") ?: return@withContext emptyList()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext emptyList()
+                val body = response.body?.string() ?: return@withContext emptyList()
+                val json = JSONObject(body)
+                val devicesArray = json.optJSONArray("devices") ?: return@withContext emptyList()
 
-            val list = mutableListOf<SpotifyDevice>()
-            for (i in 0 until devicesArray.length()) {
-                val d = devicesArray.getJSONObject(i)
-                val id = d.optString("id", "")
-                if (id.isBlank()) continue
-                list.add(
-                    SpotifyDevice(
-                        id = id,
-                        name = d.optString("name", "Unknown Device"),
-                        type = d.optString("type", "Speaker"),
-                        isActive = d.optBoolean("is_active", false),
-                        isPrivateSession = d.optBoolean("is_private_session", false),
-                        isRestricted = d.optBoolean("is_restricted", false),
-                        volumePercent = d.optInt("volume_percent", 50),
-                        supportsVolume = d.optBoolean("supports_volume", true)
+                val list = mutableListOf<SpotifyDevice>()
+                for (i in 0 until devicesArray.length()) {
+                    val d = devicesArray.getJSONObject(i)
+                    val id = d.optString("id", "")
+                    if (id.isBlank()) continue
+                    list.add(
+                        SpotifyDevice(
+                            id = id,
+                            name = d.optString("name", "Unknown Device"),
+                            type = d.optString("type", "Speaker"),
+                            isActive = d.optBoolean("is_active", false),
+                            isPrivateSession = d.optBoolean("is_private_session", false),
+                            isRestricted = d.optBoolean("is_restricted", false),
+                            volumePercent = d.optInt("volume_percent", 50),
+                            supportsVolume = d.optBoolean("supports_volume", true)
+                        )
                     )
-                )
+                }
+                list
             }
-            list
         } catch (e: Exception) {
             emptyList()
         }
@@ -290,8 +288,9 @@ class SpotifyApiService(private val client: OkHttpClient) {
                 .put(body)
                 .build()
 
-            val response = client.newCall(request).execute()
-            response.isSuccessful || response.code == 204
+            client.newCall(request).execute().use { response ->
+                response.isSuccessful || response.code == 204
+            }
         } catch (e: Exception) {
             false
         }
@@ -324,20 +323,23 @@ class SpotifyApiService(private val client: OkHttpClient) {
                 .put(body)
                 .build()
 
-            val response = client.newCall(request).execute()
-            if (response.isSuccessful || response.code == 204) {
-                return@withContext true
+            val needRetry = client.newCall(request).execute().use { response ->
+                if (response.isSuccessful || response.code == 204) {
+                    return@withContext true
+                }
+                response.code == 404 && !deviceId.isNullOrBlank()
             }
 
             // If 404 (e.g. specified device is inactive), retry without device_id query param
-            if (response.code == 404 && !deviceId.isNullOrBlank()) {
+            if (needRetry) {
                 val fallbackReq = Request.Builder()
                     .url("$BASE_URL/me/player/play")
                     .header("Authorization", "Bearer $token")
                     .put(body)
                     .build()
-                val fallbackResp = client.newCall(fallbackReq).execute()
-                return@withContext fallbackResp.isSuccessful || fallbackResp.code == 204
+                return@withContext client.newCall(fallbackReq).execute().use { fallbackResp ->
+                    fallbackResp.isSuccessful || fallbackResp.code == 204
+                }
             }
 
             false
@@ -359,43 +361,47 @@ class SpotifyApiService(private val client: OkHttpClient) {
                         .header("Authorization", "Bearer $token")
                         .get()
                         .build()
-                    val plResp = client.newCall(playlistsReq).execute()
-                    if (!plResp.isSuccessful) break
 
-                    val plBody = plResp.body?.string() ?: ""
-                    val plJson = JSONObject(plBody)
-                    val items = plJson.optJSONArray("items") ?: break
-                    if (items.length() == 0) break
+                    val shouldBreak = client.newCall(playlistsReq).execute().use { plResp ->
+                        if (!plResp.isSuccessful) return@use true
 
-                    for (i in 0 until items.length()) {
-                        val pl = items.getJSONObject(i)
-                        val id = pl.optString("id", "")
-                        val name = pl.optString("name", "Playlist")
-                        val uri = pl.optString("uri", "spotify:playlist:$id")
-                        val imgArr = pl.optJSONArray("images")
-                        val imgUrl = if (imgArr != null && imgArr.length() > 0) {
-                            imgArr.getJSONObject(0).optString("url")
-                        } else null
+                        val plBody = plResp.body?.string() ?: ""
+                        val plJson = JSONObject(plBody)
+                        val items = plJson.optJSONArray("items") ?: return@use true
+                        if (items.length() == 0) return@use true
 
-                        val ownerObj = pl.optJSONObject("owner")
-                        val ownerName = ownerObj?.optString("display_name", "") ?: ""
-                        val tracksTotal = pl.optJSONObject("tracks")?.optInt("total", 0) ?: 0
-                        val subtitle = if (ownerName.isNotBlank()) "$ownerName • $tracksTotal tracks" else "$tracksTotal tracks • Playlist"
+                        for (i in 0 until items.length()) {
+                            val pl = items.getJSONObject(i)
+                            val id = pl.optString("id", "")
+                            val name = pl.optString("name", "Playlist")
+                            val uri = pl.optString("uri", "spotify:playlist:$id")
+                            val imgArr = pl.optJSONArray("images")
+                            val imgUrl = if (imgArr != null && imgArr.length() > 0) {
+                                imgArr.getJSONObject(0).optString("url")
+                            } else null
 
-                        val playlistItem = QuickPlayItem(
-                            id = uri,
-                            title = name,
-                            subtitle = subtitle,
-                            imageUrl = imgUrl,
-                            uri = uri,
-                            type = QuickPlayType.PLAYLIST
-                        )
-                        userPlaylists.add(playlistItem)
-                        userPlaylistsMap[uri] = playlistItem
+                            val ownerObj = pl.optJSONObject("owner")
+                            val ownerName = ownerObj?.optString("display_name", "") ?: ""
+                            val tracksTotal = pl.optJSONObject("tracks")?.optInt("total", 0) ?: 0
+                            val subtitle = if (ownerName.isNotBlank()) "$ownerName • $tracksTotal tracks" else "$tracksTotal tracks • Playlist"
+
+                            val playlistItem = QuickPlayItem(
+                                id = uri,
+                                title = name,
+                                subtitle = subtitle,
+                                imageUrl = imgUrl,
+                                uri = uri,
+                                type = QuickPlayType.PLAYLIST
+                            )
+                            userPlaylists.add(playlistItem)
+                            userPlaylistsMap[uri] = playlistItem
+                        }
+
+                        val total = plJson.optInt("total", 0)
+                        offset + 50 >= total
                     }
 
-                    val total = plJson.optInt("total", 0)
-                    if (offset + 50 >= total) break
+                    if (shouldBreak) break
                 }
             } catch (_: Exception) {}
 
@@ -410,91 +416,93 @@ class SpotifyApiService(private val client: OkHttpClient) {
                     .header("Authorization", "Bearer $token")
                     .get()
                     .build()
-                val resp = client.newCall(req).execute()
-                if (resp.isSuccessful) {
-                    val body = resp.body?.string() ?: ""
-                    val json = JSONObject(body)
-                    val items = json.optJSONArray("items")
-                    if (items != null) {
-                        for (i in 0 until items.length()) {
-                            val itemObj = items.getJSONObject(i)
-                            val trackObj = itemObj.optJSONObject("track") ?: continue
-                            val albumObj = trackObj.optJSONObject("album")
-                            val artistsArr = trackObj.optJSONArray("artists")
-                            val primaryArtist = if (artistsArr != null && artistsArr.length() > 0) {
-                                artistsArr.getJSONObject(0).optString("name", "Unknown Artist")
-                            } else "Unknown Artist"
 
-                            val albumImages = albumObj?.optJSONArray("images")
-                            val albumArtUrl = if (albumImages != null && albumImages.length() > 0) {
-                                albumImages.getJSONObject(0).optString("url")
-                            } else null
+                client.newCall(req).execute().use { resp ->
+                    if (resp.isSuccessful) {
+                        val body = resp.body?.string() ?: ""
+                        val json = JSONObject(body)
+                        val items = json.optJSONArray("items")
+                        if (items != null) {
+                            for (i in 0 until items.length()) {
+                                val itemObj = items.getJSONObject(i)
+                                val trackObj = itemObj.optJSONObject("track") ?: continue
+                                val albumObj = trackObj.optJSONObject("album")
+                                val artistsArr = trackObj.optJSONArray("artists")
+                                val primaryArtist = if (artistsArr != null && artistsArr.length() > 0) {
+                                    artistsArr.getJSONObject(0).optString("name", "Unknown Artist")
+                                } else "Unknown Artist"
 
-                            val contextObj = itemObj.optJSONObject("context")
-                            val contextType = contextObj?.optString("type")
-                            val contextUri = contextObj?.optString("uri")
+                                val albumImages = albumObj?.optJSONArray("images")
+                                val albumArtUrl = if (albumImages != null && albumImages.length() > 0) {
+                                    albumImages.getJSONObject(0).optString("url")
+                                } else null
 
-                            if (!contextUri.isNullOrBlank() && contextUri !in seenUris) {
-                                when (contextType) {
-                                    "playlist" -> {
-                                        seenUris.add(contextUri)
-                                        val matchedPl = userPlaylistsMap[contextUri]
-                                        if (matchedPl != null) {
-                                            recentPlaylists.add(matchedPl)
-                                        } else {
-                                            recentPlaylists.add(
+                                val contextObj = itemObj.optJSONObject("context")
+                                val contextType = contextObj?.optString("type")
+                                val contextUri = contextObj?.optString("uri")
+
+                                if (!contextUri.isNullOrBlank() && contextUri !in seenUris) {
+                                    when (contextType) {
+                                        "playlist" -> {
+                                            seenUris.add(contextUri)
+                                            val matchedPl = userPlaylistsMap[contextUri]
+                                            if (matchedPl != null) {
+                                                recentPlaylists.add(matchedPl)
+                                            } else {
+                                                recentPlaylists.add(
+                                                    QuickPlayItem(
+                                                        id = contextUri,
+                                                        title = "Playlist",
+                                                        subtitle = "Recently Played • Playlist",
+                                                        imageUrl = albumArtUrl,
+                                                        uri = contextUri,
+                                                        type = QuickPlayType.PLAYLIST
+                                                    )
+                                                )
+                                            }
+                                        }
+                                        "album" -> {
+                                            seenUris.add(contextUri)
+                                            recentAlbumsAndArtists.add(
                                                 QuickPlayItem(
                                                     id = contextUri,
-                                                    title = "Playlist",
-                                                    subtitle = "Recently Played • Playlist",
+                                                    title = albumObj?.optString("name", "Album") ?: "Album",
+                                                    subtitle = "$primaryArtist • Album",
                                                     imageUrl = albumArtUrl,
                                                     uri = contextUri,
-                                                    type = QuickPlayType.PLAYLIST
+                                                    type = QuickPlayType.ALBUM
+                                                )
+                                            )
+                                        }
+                                        "artist" -> {
+                                            seenUris.add(contextUri)
+                                            recentAlbumsAndArtists.add(
+                                                QuickPlayItem(
+                                                    id = contextUri,
+                                                    title = primaryArtist,
+                                                    subtitle = "Artist",
+                                                    imageUrl = albumArtUrl,
+                                                    uri = contextUri,
+                                                    type = QuickPlayType.ARTIST
                                                 )
                                             )
                                         }
                                     }
-                                    "album" -> {
-                                        seenUris.add(contextUri)
+                                } else if (albumObj != null) {
+                                    val albumUri = albumObj.optString("uri")
+                                    if (albumUri.isNotBlank() && albumUri !in seenUris) {
+                                        seenUris.add(albumUri)
                                         recentAlbumsAndArtists.add(
                                             QuickPlayItem(
-                                                id = contextUri,
-                                                title = albumObj?.optString("name", "Album") ?: "Album",
+                                                id = albumUri,
+                                                title = albumObj.optString("name", "Album"),
                                                 subtitle = "$primaryArtist • Album",
                                                 imageUrl = albumArtUrl,
-                                                uri = contextUri,
+                                                uri = albumUri,
                                                 type = QuickPlayType.ALBUM
                                             )
                                         )
                                     }
-                                    "artist" -> {
-                                        seenUris.add(contextUri)
-                                        recentAlbumsAndArtists.add(
-                                            QuickPlayItem(
-                                                id = contextUri,
-                                                title = primaryArtist,
-                                                subtitle = "Artist",
-                                                imageUrl = albumArtUrl,
-                                                uri = contextUri,
-                                                type = QuickPlayType.ARTIST
-                                            )
-                                        )
-                                    }
-                                }
-                            } else if (albumObj != null) {
-                                val albumUri = albumObj.optString("uri")
-                                if (albumUri.isNotBlank() && albumUri !in seenUris) {
-                                    seenUris.add(albumUri)
-                                    recentAlbumsAndArtists.add(
-                                        QuickPlayItem(
-                                            id = albumUri,
-                                            title = albumObj.optString("name", "Album"),
-                                            subtitle = "$primaryArtist • Album",
-                                            imageUrl = albumArtUrl,
-                                            uri = albumUri,
-                                            type = QuickPlayType.ALBUM
-                                        )
-                                    )
                                 }
                             }
                         }
@@ -545,8 +553,9 @@ class SpotifyApiService(private val client: OkHttpClient) {
                 else -> reqBuilder.get().build()
             }
 
-            val response = client.newCall(request).execute()
-            response.isSuccessful
+            client.newCall(request).execute().use { response ->
+                response.isSuccessful
+            }
         } catch (e: Exception) {
             false
         }

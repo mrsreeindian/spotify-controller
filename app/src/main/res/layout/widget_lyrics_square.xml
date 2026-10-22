@@ -19,6 +19,7 @@
             android:layout_width="34dp"
             android:layout_height="34dp"
             android:scaleType="centerCrop"
+            android:contentDescription="@null"
             android:src="@drawable/widget_album_art_placeholder" />
 
         <LinearLayout
@@ -49,7 +50,7 @@
                 android:maxLines="1"
                 android:text="Spotify Controller"
                 android:textColor="#A0A0B0"
-                android:textSize="10sp" />
+                android:textSize="11sp" />
         </LinearLayout>
 
         <ImageButton
@@ -95,6 +96,7 @@
                 android:layout_width="12dp"
                 android:layout_height="12dp"
                 android:layout_marginEnd="5dp"
+                android:contentDescription="@null"
                 android:src="@drawable/ic_widget_lyrics" />
 
             <TextView
@@ -119,7 +121,7 @@
             android:maxLines="1"
             android:text=""
             android:textColor="#66FFFFFF"
-            android:textSize="10sp" />
+            android:textSize="11sp" />
     </LinearLayout>
 
 </LinearLayout>

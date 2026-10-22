@@ -54,7 +54,9 @@ class SpotifyRepository(
         pollingJob = appScope.launch(Dispatchers.IO) {
             while (isActive) {
                 pollPlaybackState()
-                delay(1500L)
+                val isPlaying = _playbackState.value.isPlaying
+                val delayMs = if (isPlaying) 1500L else 4000L
+                delay(delayMs)
             }
         }
     }

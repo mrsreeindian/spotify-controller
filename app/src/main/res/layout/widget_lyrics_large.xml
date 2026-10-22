@@ -19,6 +19,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:scaleType="centerCrop"
+            android:contentDescription="@null"
             android:src="@drawable/widget_album_art_placeholder" />
 
         <LinearLayout
@@ -61,7 +62,7 @@
                 android:maxLines="1"
                 android:text=""
                 android:textColor="#707086"
-                android:textSize="10sp" />
+                android:textSize="11sp" />
         </LinearLayout>
 
         <!-- Playback Controls -->
@@ -131,7 +132,7 @@
             android:maxLines="1"
             android:text=""
             android:textColor="#33FFFFFF"
-            android:textSize="10sp" />
+            android:textSize="11sp" />
 
         <!-- Line -2 -->
         <TextView
@@ -176,6 +177,7 @@
                 android:layout_width="14dp"
                 android:layout_height="14dp"
                 android:layout_marginEnd="6dp"
+                android:contentDescription="@null"
                 android:src="@drawable/ic_widget_lyrics" />
 
             <TextView
@@ -223,7 +225,7 @@
             android:maxLines="1"
             android:text=""
             android:textColor="#33FFFFFF"
-            android:textSize="10sp" />
+            android:textSize="11sp" />
 
     </LinearLayout>
 
@@ -243,14 +245,14 @@
             android:layout_weight="1"
             android:text="Time-Synced Lyrics • 4x4"
             android:textColor="#55FFFFFF"
-            android:textSize="10sp" />
+            android:textSize="11sp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Tap to open full lyrics ↗"
             android:textColor="#801DB954"
-            android:textSize="10sp"
+            android:textSize="11sp"
             android:textStyle="bold" />
     </LinearLayout>
 

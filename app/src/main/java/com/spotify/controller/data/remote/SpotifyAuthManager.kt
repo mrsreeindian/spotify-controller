@@ -94,11 +94,12 @@ class SpotifyAuthManager(
                 requestBuilder.header("Authorization", "Basic $basicAuth")
             }
 
-            val response = okHttpClient.newCall(requestBuilder.build()).execute()
-            val body = response.body?.string() ?: ""
+            val (isSuccess, body, statusCode) = okHttpClient.newCall(requestBuilder.build()).execute().use { response ->
+                Triple(response.isSuccessful, response.body?.string() ?: "", response.code)
+            }
 
-            if (!response.isSuccessful) {
-                return@withContext Result.failure(Exception("Token exchange failed (${response.code}): $body"))
+            if (!isSuccess) {
+                return@withContext Result.failure(Exception("Token exchange failed ($statusCode): $body"))
             }
 
             val json = JSONObject(body)
@@ -146,10 +147,11 @@ class SpotifyAuthManager(
                 requestBuilder.header("Authorization", "Basic $basicAuth")
             }
 
-            val response = okHttpClient.newCall(requestBuilder.build()).execute()
-            val body = response.body?.string() ?: ""
+            val (isSuccess, body) = okHttpClient.newCall(requestBuilder.build()).execute().use { response ->
+                Pair(response.isSuccessful, response.body?.string() ?: "")
+            }
 
-            if (!response.isSuccessful) {
+            if (!isSuccess) {
                 return@withContext null
             }
 

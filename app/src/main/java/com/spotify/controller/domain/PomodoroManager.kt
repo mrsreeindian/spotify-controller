@@ -66,14 +66,20 @@ class PomodoroManager(
         }
 
         tickerJob?.cancel()
+        val targetEndTimeMs = System.currentTimeMillis() + (_state.value.remainingSeconds * 1000L)
         tickerJob = scope.launch(Dispatchers.Default) {
             while (isActive) {
-                delay(1000L)
+                delay(500L)
                 val current = _state.value
                 if (current.status != PomodoroStatus.RUNNING) break
 
-                if (current.remainingSeconds > 1) {
-                    _state.update { it.copy(remainingSeconds = it.remainingSeconds - 1) }
+                val remainingMs = targetEndTimeMs - System.currentTimeMillis()
+                val remainingSec = (Math.ceil(remainingMs / 1000.0).toInt()).coerceAtLeast(0)
+
+                if (remainingSec > 0) {
+                    if (remainingSec != current.remainingSeconds) {
+                        _state.update { it.copy(remainingSeconds = remainingSec) }
+                    }
                 } else {
                     _state.update { it.copy(remainingSeconds = 0) }
                     triggerAlert()
@@ -262,12 +268,7 @@ class PomodoroManager(
             } else {
                 @Suppress("DEPRECATION")
                 val vibrator = ctx.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 250, 150, 350), -1))
-                } else {
-                    @Suppress("DEPRECATION")
-                    vibrator?.vibrate(longArrayOf(0, 250, 150, 350), -1)
-                }
+                vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 250, 150, 350), -1))
             }
         } catch (_: Exception) {}
     }

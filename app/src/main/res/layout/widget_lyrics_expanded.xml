@@ -19,6 +19,7 @@
             android:layout_width="44dp"
             android:layout_height="44dp"
             android:scaleType="centerCrop"
+            android:contentDescription="@null"
             android:src="@drawable/widget_album_art_placeholder" />
 
         <LinearLayout
@@ -149,6 +150,7 @@
                 android:layout_width="14dp"
                 android:layout_height="14dp"
                 android:layout_marginEnd="6dp"
+                android:contentDescription="@null"
                 android:src="@drawable/ic_widget_lyrics" />
 
             <TextView

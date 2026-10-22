@@ -77,9 +77,9 @@ fun PortraitPlayerLayout(
     onRepeatToggle: () -> Unit,
     onLikeToggle: () -> Unit,
     onRetryLyrics: () -> Unit,
+    modifier: Modifier = Modifier,
     onOpenDeviceSelector: () -> Unit = {},
-    onOpenQuickPlay: () -> Unit = {},
-    modifier: Modifier = Modifier
+    onOpenQuickPlay: () -> Unit = {}
 ) {
     val albumColors = LocalAlbumArtColors.current
     val track = playbackState.track
