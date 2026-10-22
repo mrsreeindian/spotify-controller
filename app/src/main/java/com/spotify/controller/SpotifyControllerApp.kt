@@ -4,6 +4,8 @@ import android.app.Application
 import com.spotify.controller.data.remote.LrclibApiService
 import com.spotify.controller.data.remote.SpotifyApiService
 import com.spotify.controller.data.remote.SpotifyAuthManager
+import com.spotify.controller.data.remote.SpotifyRateLimiter
+import com.spotify.controller.data.remote.SpotifyRateLimitException
 import com.spotify.controller.data.repository.CredentialsRepository
 import com.spotify.controller.data.repository.LyricsRepository
 import com.spotify.controller.data.repository.SpotifyRepository
@@ -11,6 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -42,7 +45,27 @@ class SpotifyControllerApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
+        val rateLimitInterceptor = Interceptor { chain ->
+            val req = chain.request()
+            val isSpotify = req.url.host.contains("spotify.com", ignoreCase = true)
+
+            if (isSpotify && SpotifyRateLimiter.isRateLimited) {
+                val remaining = SpotifyRateLimiter.remainingSeconds
+                throw SpotifyRateLimitException("Spotify rate limit active ($remaining seconds remaining). Please wait.")
+            }
+
+            val response = chain.proceed(req)
+
+            if (isSpotify && response.code == 429) {
+                val retryAfter = response.header("Retry-After")?.toLongOrNull()
+                SpotifyRateLimiter.onRateLimit(retryAfter)
+            }
+
+            response
+        }
+
         okHttpClient = OkHttpClient.Builder()
+            .addInterceptor(rateLimitInterceptor)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .writeTimeout(15, TimeUnit.SECONDS)

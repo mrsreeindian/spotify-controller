@@ -1,12 +1,15 @@
 package com.spotify.controller.ui.screens
 
 import android.content.res.Configuration
+import android.widget.Toast
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import com.spotify.controller.ui.components.DeviceSelectorDialog
 import com.spotify.controller.ui.components.PomodoroDialog
 import com.spotify.controller.ui.components.RecentlyPlayedDialog
@@ -20,6 +23,13 @@ fun MainPlayerScreen(
     onToggleOrientation: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        viewModel.toastEvent.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     val playbackState by viewModel.playbackState.collectAsState()
     val albumColors by viewModel.albumColors.collectAsState()
     val showLyrics by viewModel.showLyrics.collectAsState()

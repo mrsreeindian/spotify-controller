@@ -20,9 +20,12 @@ import com.spotify.controller.domain.PomodoroManager
 import com.spotify.controller.ui.theme.AlbumArtColors
 import com.spotify.controller.ui.theme.PaletteExtractor
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -164,12 +167,20 @@ class PlayerViewModel(
         viewModelScope.launch { spotifyRepository.toggleShuffle() }
     }
 
+    private val _toastEvent = MutableSharedFlow<String>()
+    val toastEvent: SharedFlow<String> = _toastEvent.asSharedFlow()
+
     fun cycleRepeatMode() {
         viewModelScope.launch { spotifyRepository.cycleRepeatMode() }
     }
 
     fun toggleLike() {
-        viewModelScope.launch { spotifyRepository.toggleLike() }
+        viewModelScope.launch {
+            val result = spotifyRepository.toggleLike()
+            result.onFailure { err ->
+                _toastEvent.emit(err.message ?: "Failed to update Liked Songs")
+            }
+        }
     }
 
     fun toggleLyrics() {

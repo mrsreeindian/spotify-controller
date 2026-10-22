@@ -8,6 +8,7 @@ import com.spotify.controller.data.model.SpotifyCredentials
 import com.spotify.controller.data.model.SpotifyDevice
 import com.spotify.controller.data.remote.SpotifyApiService
 import com.spotify.controller.data.remote.SpotifyAuthManager
+import com.spotify.controller.data.remote.SpotifyRateLimiter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -53,9 +54,22 @@ class SpotifyRepository(
         if (pollingJob?.isActive == true) return
         pollingJob = appScope.launch(Dispatchers.IO) {
             while (isActive) {
+                if (SpotifyRateLimiter.isRateLimited) {
+                    val waitMs = (SpotifyRateLimiter.remainingSeconds * 1000L).coerceIn(2000L, 60000L)
+                    delay(waitMs)
+                    continue
+                }
+
                 pollPlaybackState()
+
+                if (SpotifyRateLimiter.isRateLimited) {
+                    val waitMs = (SpotifyRateLimiter.remainingSeconds * 1000L).coerceIn(2000L, 60000L)
+                    delay(waitMs)
+                    continue
+                }
+
                 val isPlaying = _playbackState.value.isPlaying
-                val delayMs = if (isPlaying) 1500L else 4000L
+                val delayMs = if (isPlaying) 3500L else 5000L
                 delay(delayMs)
             }
         }
@@ -178,10 +192,19 @@ class SpotifyRepository(
         }
     }
 
-    suspend fun toggleLike() {
-        val currentTrack = _playbackState.value.track ?: return
+    suspend fun toggleLike(): Result<Boolean> {
+        val currentTrack = _playbackState.value.track
+            ?: return Result.failure(Exception("No track currently playing"))
         val trackId = currentTrack.id.removePrefix("spotify:track:").trim()
-        if (trackId.isBlank()) return
+        if (trackId.isBlank()) {
+            return Result.failure(Exception("Invalid track ID"))
+        }
+
+        if (SpotifyRateLimiter.isRateLimited) {
+            return Result.failure(
+                Exception("Spotify rate limit active. Please wait ${SpotifyRateLimiter.remainingSeconds}s before retrying.")
+            )
+        }
 
         val newLiked = !currentTrack.isLiked
         lastLikedTrackId = trackId
@@ -189,12 +212,20 @@ class SpotifyRepository(
         lastLikedCheckTimestamp = android.os.SystemClock.elapsedRealtime()
         _playbackState.update { it.copy(track = currentTrack.copy(isLiked = newLiked)) }
 
-        val token = getValidToken() ?: return
-        val success = spotifyApiService.setLiked(token, trackId, newLiked)
-        if (!success) {
+        val token = getValidToken() ?: run {
+            lastLikedStatus = !newLiked
+            _playbackState.update { it.copy(track = currentTrack.copy(isLiked = !newLiked)) }
+            return Result.failure(Exception("Please log in to Spotify to save tracks"))
+        }
+
+        val res = spotifyApiService.setLiked(token, trackId, newLiked)
+        return if (res.isSuccess) {
+            Result.success(newLiked)
+        } else {
             // Revert on failure
             lastLikedStatus = !newLiked
             _playbackState.update { it.copy(track = currentTrack.copy(isLiked = !newLiked)) }
+            Result.failure(res.exceptionOrNull() ?: Exception("Failed to update Liked Songs"))
         }
     }
 

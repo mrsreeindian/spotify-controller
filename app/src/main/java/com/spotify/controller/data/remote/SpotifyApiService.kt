@@ -60,9 +60,13 @@ class SpotifyApiService(private val client: OkHttpClient) {
         return when (statusCode) {
             400 -> "Bad Request (400). Please verify token format."
             401 -> "Unauthorized (401). Access token is expired or invalid."
-            403 -> "Forbidden (403). Your account or token lacks required permissions."
+            403 -> "Forbidden (403). Your account or token lacks required permissions (e.g. user-library-modify)."
             404 -> "Not found (404)."
-            429 -> "Rate limit reached (429). Please wait a moment."
+            429 -> {
+                val rem = SpotifyRateLimiter.remainingSeconds
+                if (rem > 0) "Spotify rate limit active. Please wait ${rem}s before retrying."
+                else "Spotify rate limit reached (429). Please wait a moment."
+            }
             in 500..599 -> "Spotify server error ($statusCode). Please try again later."
             else -> "Connection failed ($statusCode)."
         }
@@ -72,6 +76,11 @@ class SpotifyApiService(private val client: OkHttpClient) {
         val cleaned = SpotifyCredentials.cleanToken(token)
         if (cleaned.isBlank()) {
             return@withContext Result.failure(Exception("Access token is empty."))
+        }
+        if (SpotifyRateLimiter.isRateLimited) {
+            return@withContext Result.failure(
+                Exception("Spotify rate limit active. Please wait ${SpotifyRateLimiter.remainingSeconds}s before retrying.")
+            )
         }
         try {
             val request = Request.Builder()
@@ -83,18 +92,24 @@ class SpotifyApiService(private val client: OkHttpClient) {
             client.newCall(request).execute().use { response ->
                 val body = response.body?.string() ?: ""
                 if (response.isSuccessful) {
+                    SpotifyRateLimiter.reset()
                     val json = JSONObject(body)
                     val displayName = json.optString("display_name").takeIf { it.isNotBlank() }
                         ?: json.optString("id").takeIf { it.isNotBlank() }
                         ?: "Spotify User"
                     Result.success(displayName)
                 } else {
+                    if (response.code == 429) {
+                        val retryAfter = response.header("Retry-After")?.toLongOrNull()
+                        SpotifyRateLimiter.onRateLimit(retryAfter)
+                    }
                     val msg = parseSpotifyErrorMessage(response.code, body)
                     Result.failure(Exception(msg))
                 }
             }
         } catch (e: Exception) {
             val friendlyMsg = when (e) {
+                is SpotifyRateLimitException -> e.message ?: "Spotify rate limit active. Please wait."
                 is java.net.UnknownHostException -> "Network error: Unable to reach Spotify. Check your internet connection."
                 is java.net.SocketTimeoutException -> "Network error: Connection to Spotify timed out."
                 else -> e.message ?: "Failed to connect to Spotify."
@@ -104,6 +119,9 @@ class SpotifyApiService(private val client: OkHttpClient) {
     }
 
     suspend fun getPlaybackState(token: String, isLiked: Boolean? = null): PlaybackState? = withContext(Dispatchers.IO) {
+        if (SpotifyRateLimiter.isRateLimited) {
+            return@withContext null
+        }
         try {
             val request = Request.Builder()
                 .url("$BASE_URL/me/player")
@@ -112,6 +130,11 @@ class SpotifyApiService(private val client: OkHttpClient) {
                 .build()
 
             val rawData = client.newCall(request).execute().use { response ->
+                if (response.code == 429) {
+                    val retryAfter = response.header("Retry-After")?.toLongOrNull()
+                    SpotifyRateLimiter.onRateLimit(retryAfter)
+                    return@withContext null
+                }
                 if (response.code == 204) {
                     // 204 No Content -> Spotify is not active/playing
                     return@withContext PlaybackState.IDLE
@@ -261,7 +284,7 @@ class SpotifyApiService(private val client: OkHttpClient) {
 
     suspend fun checkIsLiked(token: String, trackId: String): Boolean = withContext(Dispatchers.IO) {
         val cleanId = trackId.removePrefix("spotify:track:").trim()
-        if (cleanId.isBlank()) return@withContext false
+        if (cleanId.isBlank() || SpotifyRateLimiter.isRateLimited) return@withContext false
         try {
             val request = Request.Builder()
                 .url("$BASE_URL/me/tracks/contains?ids=$cleanId")
@@ -269,6 +292,11 @@ class SpotifyApiService(private val client: OkHttpClient) {
                 .get()
                 .build()
             client.newCall(request).execute().use { response ->
+                if (response.code == 429) {
+                    val retryAfter = response.header("Retry-After")?.toLongOrNull()
+                    SpotifyRateLimiter.onRateLimit(retryAfter)
+                    return@withContext false
+                }
                 if (!response.isSuccessful) return@withContext false
                 val body = response.body?.string() ?: return@withContext false
                 val jsonArr = JSONArray(body)
@@ -279,9 +307,16 @@ class SpotifyApiService(private val client: OkHttpClient) {
         }
     }
 
-    suspend fun setLiked(token: String, trackId: String, isLiked: Boolean): Boolean = withContext(Dispatchers.IO) {
+    suspend fun setLiked(token: String, trackId: String, isLiked: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
         val cleanId = trackId.removePrefix("spotify:track:").trim()
-        if (cleanId.isBlank()) return@withContext false
+        if (cleanId.isBlank()) return@withContext Result.failure(Exception("Invalid track ID"))
+
+        if (SpotifyRateLimiter.isRateLimited) {
+            return@withContext Result.failure(
+                Exception("Spotify rate limit active (${SpotifyRateLimiter.remainingSeconds}s remaining). Please wait.")
+            )
+        }
+
         try {
             val jsonPayload = JSONObject().apply {
                 put("ids", JSONArray().put(cleanId))
@@ -290,22 +325,37 @@ class SpotifyApiService(private val client: OkHttpClient) {
 
             val request = if (isLiked) {
                 Request.Builder()
-                    .url("$BASE_URL/me/tracks?ids=$cleanId")
+                    .url("$BASE_URL/me/tracks")
                     .header("Authorization", authHeader(token))
                     .put(requestBody)
                     .build()
             } else {
                 Request.Builder()
-                    .url("$BASE_URL/me/tracks?ids=$cleanId")
+                    .url("$BASE_URL/me/tracks")
                     .header("Authorization", authHeader(token))
                     .delete(requestBody)
                     .build()
             }
+
             client.newCall(request).execute().use { response ->
-                response.isSuccessful || response.code == 200 || response.code == 201 || response.code == 204
+                if (response.code == 429) {
+                    val retryAfter = response.header("Retry-After")?.toLongOrNull()
+                    SpotifyRateLimiter.onRateLimit(retryAfter)
+                    return@withContext Result.failure(
+                        Exception("Spotify rate limit reached (${SpotifyRateLimiter.remainingSeconds}s remaining).")
+                    )
+                }
+
+                if (response.isSuccessful || response.code in 200..204) {
+                    Result.success(Unit)
+                } else {
+                    val body = response.body?.string().orEmpty()
+                    val msg = parseSpotifyErrorMessage(response.code, body)
+                    Result.failure(Exception(msg))
+                }
             }
         } catch (e: Exception) {
-            false
+            Result.failure(e)
         }
     }
 
