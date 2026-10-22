@@ -10,6 +10,7 @@ import com.spotify.controller.data.repository.SpotifyRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -62,5 +63,12 @@ class SpotifyControllerApp : Application() {
 
         // Initialize and start real-time home screen widget sync
         com.spotify.controller.widget.LyricsWidgetProvider.startWidgetSync(this)
+
+        // Reactively push playback state changes to all widgets immediately
+        appScope.launch {
+            spotifyRepository.playbackState.collect {
+                com.spotify.controller.widget.LyricsWidgetProvider.updateAllWidgets(this@SpotifyControllerApp)
+            }
+        }
     }
 }
