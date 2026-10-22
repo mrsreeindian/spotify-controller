@@ -1,12 +1,10 @@
 package com.spotify.controller.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
+import android.content.res.Configuration
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,10 +18,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Coffee
@@ -38,7 +34,6 @@ import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
@@ -52,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -61,7 +57,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.spotify.controller.data.model.PomodoroPhase
 import com.spotify.controller.data.model.PomodoroState
-import com.spotify.controller.data.model.PomodoroStatus
 import com.spotify.controller.ui.theme.LocalAlbumArtColors
 import kotlin.math.roundToInt
 
@@ -90,11 +85,10 @@ fun PomodoroTopBarPill(
             )
         }
     } else {
-        // Active/Paused running chip
         val phaseColor by animateColorAsState(
             targetValue = when (state.phase) {
                 PomodoroPhase.WORK -> albumColors.tonalPrimary
-                PomodoroPhase.BREAK -> Color(0xFFFFB74D) // Warm amber for break
+                PomodoroPhase.BREAK -> Color(0xFFFFB74D)
             },
             label = "pillColor"
         )
@@ -105,16 +99,16 @@ fun PomodoroTopBarPill(
                 .background(phaseColor.copy(alpha = 0.20f))
                 .border(1.dp, phaseColor.copy(alpha = 0.50f), RoundedCornerShape(16.dp))
                 .clickable(onClick = onClick)
-                .padding(horizontal = 10.dp, vertical = 5.dp),
+                .padding(horizontal = 9.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = if (state.phase == PomodoroPhase.WORK) Icons.Rounded.Timer else Icons.Rounded.Coffee,
                 contentDescription = null,
                 tint = phaseColor,
-                modifier = Modifier.size(14.dp)
+                modifier = Modifier.size(13.dp)
             )
-            Spacer(modifier = Modifier.width(5.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = state.formattedTime,
                 color = Color.White,
@@ -123,11 +117,11 @@ fun PomodoroTopBarPill(
                 fontFamily = FontFamily.Monospace
             )
             if (state.isPaused) {
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(3.dp))
                 Text(
                     text = "⏸",
                     color = Color.White.copy(alpha = 0.6f),
-                    fontSize = 10.sp
+                    fontSize = 9.sp
                 )
             }
         }
@@ -135,8 +129,8 @@ fun PomodoroTopBarPill(
 }
 
 /**
- * Full Pomodoro Focus Timer Dialog with custom duration pickers,
- * circular countdown visualization, phase controls, and presets.
+ * Compact, Non-Scrolling Pomodoro Focus Timer Dialog.
+ * Perfectly fitted for standard portrait handhelds and dock landscape displays without scrolling.
  */
 @Composable
 fun PomodoroDialog(
@@ -151,9 +145,11 @@ fun PomodoroDialog(
     onDismiss: () -> Unit
 ) {
     val albumColors = LocalAlbumArtColors.current
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
     val animatedProgress by animateFloatAsState(
         targetValue = state.progress,
-        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
         label = "pomodoroProgress"
     )
 
@@ -168,351 +164,437 @@ fun PomodoroDialog(
     ) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .padding(vertical = 24.dp),
-            shape = RoundedCornerShape(28.dp),
+                .fillMaxWidth(if (isLandscape) 0.82f else 0.90f)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            shape = RoundedCornerShape(24.dp),
             color = Color(0xFF16161E),
             tonalElevation = 6.dp,
             border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2E2E3E))
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(24.dp)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Header
+            if (isLandscape) {
+                // Landscape: 2-column side-by-side layout (zero scroll)
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(18.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(
-                            text = "Pomodoro Timer",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = if (state.completedSessions > 0) "${state.completedSessions} focus session(s) completed" else "Spotify Focus Companion",
-                            fontSize = 12.sp,
-                            color = Color.White.copy(alpha = 0.6f)
-                        )
-                    }
-
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Close,
-                            contentDescription = "Close",
-                            tint = Color.White.copy(alpha = 0.7f),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Hero Circular Countdown Ring
-                Box(
-                    modifier = Modifier.size(190.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    // Inactive background ring
-                    CircularProgressIndicator(
-                        progress = { 1f },
-                        modifier = Modifier.size(190.dp),
-                        color = Color.White.copy(alpha = 0.08f),
-                        strokeWidth = 10.dp,
-                        trackColor = Color.Transparent,
-                        strokeCap = StrokeCap.Round
-                    )
-
-                    // Active progress ring
-                    CircularProgressIndicator(
-                        progress = { animatedProgress },
-                        modifier = Modifier.size(190.dp),
-                        color = activePhaseColor,
-                        strokeWidth = 10.dp,
-                        trackColor = Color.Transparent,
-                        strokeCap = StrokeCap.Round
-                    )
-
+                    // Left Column: Timer & Controls
                     Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        DialogHeader(
+                            completedSessions = state.completedSessions,
+                            onDismiss = onDismiss
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        CountdownRing(
+                            state = state,
+                            progress = animatedProgress,
+                            activeColor = activePhaseColor,
+                            ringSize = 115
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        ActionControls(
+                            isRunning = state.isRunning,
+                            isPaused = state.isPaused,
+                            activeColor = activePhaseColor,
+                            onStart = onStart,
+                            onPause = onPause,
+                            onReset = onReset,
+                            onSkipPhase = onSkipPhase
+                        )
+                    }
+
+                    // Right Column: Sliders, Presets & Auto-pause
+                    Column(
+                        modifier = Modifier.weight(1.15f),
                         verticalArrangement = Arrangement.Center
                     ) {
-                        // Phase Badge
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(activePhaseColor.copy(alpha = 0.20f))
-                                .padding(horizontal = 10.dp, vertical = 3.dp)
-                        ) {
-                            Text(
-                                text = when (state.phase) {
-                                    PomodoroPhase.WORK -> "FOCUS"
-                                    PomodoroPhase.BREAK -> "BREAK"
-                                },
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = activePhaseColor,
-                                letterSpacing = 1.sp
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Large Tabular Countdown Clock
-                        Text(
-                            text = state.formattedTime,
-                            fontSize = 42.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            fontFamily = FontFamily.Monospace,
-                            letterSpacing = (-1).sp
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        // Status Subtitle
-                        Text(
-                            text = when {
-                                state.isPaused -> "Paused"
-                                state.isRunning && state.phase == PomodoroPhase.WORK -> "Stay in the flow"
-                                state.isRunning && state.phase == PomodoroPhase.BREAK -> "Relax & recharge"
-                                else -> "Ready to focus"
-                            },
-                            fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.65f)
+                        SlidersAndSettingsCard(
+                            state = state,
+                            albumPrimary = albumColors.tonalPrimary,
+                            onWorkDurationChange = onWorkDurationChange,
+                            onBreakDurationChange = onBreakDurationChange,
+                            onAutoPauseChange = onAutoPauseChange
                         )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Primary Play / Pause / Reset / Skip Controls
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Reset Button
-                    FilledTonalIconButton(
-                        onClick = onReset,
-                        modifier = Modifier.size(46.dp),
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = Color.White.copy(alpha = 0.10f),
-                            contentColor = Color.White
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Refresh,
-                            contentDescription = "Reset Timer",
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    // Big Start / Pause Button
-                    FilledTonalButton(
-                        onClick = { if (state.isRunning) onPause() else onStart() },
-                        modifier = Modifier
-                            .height(52.dp)
-                            .width(150.dp),
-                        shape = RoundedCornerShape(26.dp),
-                        colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
-                            containerColor = activePhaseColor,
-                            contentColor = Color.Black
-                        )
-                    ) {
-                        Icon(
-                            imageVector = if (state.isRunning) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                            contentDescription = if (state.isRunning) "Pause" else "Start",
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (state.isRunning) "Pause" else if (state.isPaused) "Resume" else "Start",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    // Skip Phase Button
-                    FilledTonalIconButton(
-                        onClick = onSkipPhase,
-                        modifier = Modifier.size(46.dp),
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = Color.White.copy(alpha = 0.10f),
-                            contentColor = Color.White
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.SkipNext,
-                            contentDescription = "Skip Phase",
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Duration Configuration Sliders (enabled when timer is IDLE or PAUSED)
+            } else {
+                // Portrait: Compact single-screen layout (zero scroll)
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color.White.copy(alpha = 0.04f))
-                        .padding(16.dp)
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Work Duration Slider (15 to 60 min, default 25)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Work Duration",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "${state.workDurationMinutes} min",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = albumColors.tonalPrimary
-                        )
-                    }
-
-                    Slider(
-                        value = state.workDurationMinutes.toFloat(),
-                        onValueChange = { onWorkDurationChange(it.roundToInt()) },
-                        valueRange = 15f..60f,
-                        steps = 44, // 15 to 60 min in 1-min increments
-                        colors = SliderDefaults.colors(
-                            thumbColor = albumColors.tonalPrimary,
-                            activeTrackColor = albumColors.tonalPrimary,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.15f)
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Break Duration Slider (0 to 25 min, default 5)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Break Duration",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.White
-                        )
-                        Text(
-                            text = if (state.breakDurationMinutes == 0) "No Break" else "${state.breakDurationMinutes} min",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFFFB74D)
-                        )
-                    }
-
-                    Slider(
-                        value = state.breakDurationMinutes.toFloat(),
-                        onValueChange = { onBreakDurationChange(it.roundToInt()) },
-                        valueRange = 0f..25f,
-                        steps = 24, // 0 to 25 min in 1-min increments
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFFFFB74D),
-                            activeTrackColor = Color(0xFFFFB74D),
-                            inactiveTrackColor = Color.White.copy(alpha = 0.15f)
-                        )
+                    DialogHeader(
+                        completedSessions = state.completedSessions,
+                        onDismiss = onDismiss
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Quick Preset Pills
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        QuickPresetChip(
-                            label = "25 / 5 Classic",
-                            isSelected = state.workDurationMinutes == 25 && state.breakDurationMinutes == 5,
-                            onClick = {
-                                onWorkDurationChange(25)
-                                onBreakDurationChange(5)
-                            },
-                            modifier = Modifier.weight(1f)
-                        )
-                        QuickPresetChip(
-                            label = "50 / 10 Deep",
-                            isSelected = state.workDurationMinutes == 50 && state.breakDurationMinutes == 10,
-                            onClick = {
-                                onWorkDurationChange(50)
-                                onBreakDurationChange(10)
-                            },
-                            modifier = Modifier.weight(1f)
-                        )
-                        QuickPresetChip(
-                            label = "15 / 0 Sprint",
-                            isSelected = state.workDurationMinutes == 15 && state.breakDurationMinutes == 0,
-                            onClick = {
-                                onWorkDurationChange(15)
-                                onBreakDurationChange(0)
-                            },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
+                    CountdownRing(
+                        state = state,
+                        progress = animatedProgress,
+                        activeColor = activePhaseColor,
+                        ringSize = 125
+                    )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                // Auto-pause Spotify on break toggle
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color.White.copy(alpha = 0.04f))
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Pause Spotify on Break",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "Automatically pause playback when focus time ends",
-                            fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.55f)
-                        )
-                    }
+                    ActionControls(
+                        isRunning = state.isRunning,
+                        isPaused = state.isPaused,
+                        activeColor = activePhaseColor,
+                        onStart = onStart,
+                        onPause = onPause,
+                        onReset = onReset,
+                        onSkipPhase = onSkipPhase
+                    )
 
-                    Switch(
-                        checked = state.autoPauseSpotifyOnBreak,
-                        onCheckedChange = onAutoPauseChange,
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = albumColors.tonalPrimary,
-                            uncheckedThumbColor = Color.White.copy(alpha = 0.6f),
-                            uncheckedTrackColor = Color.White.copy(alpha = 0.15f)
-                        )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    SlidersAndSettingsCard(
+                        state = state,
+                        albumPrimary = albumColors.tonalPrimary,
+                        onWorkDurationChange = onWorkDurationChange,
+                        onBreakDurationChange = onBreakDurationChange,
+                        onAutoPauseChange = onAutoPauseChange
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun DialogHeader(
+    completedSessions: Int,
+    onDismiss: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "Pomodoro Timer",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            if (completedSessions > 0) {
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "• $completedSessions done",
+                    fontSize = 11.sp,
+                    color = Color.White.copy(alpha = 0.6f)
+                )
+            }
+        }
+
+        IconButton(
+            onClick = onDismiss,
+            modifier = Modifier.size(28.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Close,
+                contentDescription = "Close",
+                tint = Color.White.copy(alpha = 0.7f),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun CountdownRing(
+    state: PomodoroState,
+    progress: Float,
+    activeColor: Color,
+    ringSize: Int
+) {
+    Box(
+        modifier = Modifier.size(ringSize.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator(
+            progress = { 1f },
+            modifier = Modifier.size(ringSize.dp),
+            color = Color.White.copy(alpha = 0.08f),
+            strokeWidth = 6.dp,
+            trackColor = Color.Transparent,
+            strokeCap = StrokeCap.Round
+        )
+
+        CircularProgressIndicator(
+            progress = { progress },
+            modifier = Modifier.size(ringSize.dp),
+            color = activeColor,
+            strokeWidth = 6.dp,
+            trackColor = Color.Transparent,
+            strokeCap = StrokeCap.Round
+        )
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Phase Badge
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(activeColor.copy(alpha = 0.20f))
+                    .padding(horizontal = 7.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = when (state.phase) {
+                        PomodoroPhase.WORK -> "FOCUS"
+                        PomodoroPhase.BREAK -> "BREAK"
+                    },
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = activeColor,
+                    letterSpacing = 0.8.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(3.dp))
+
+            // Tabular Countdown
+            Text(
+                text = state.formattedTime,
+                fontSize = if (ringSize < 120) 28.sp else 32.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                fontFamily = FontFamily.Monospace,
+                letterSpacing = (-0.5).sp
+            )
+
+            Text(
+                text = when {
+                    state.isPaused -> "Paused"
+                    state.isRunning -> if (state.phase == PomodoroPhase.WORK) "In session" else "Resting"
+                    else -> "Ready"
+                },
+                fontSize = 10.sp,
+                color = Color.White.copy(alpha = 0.55f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ActionControls(
+    isRunning: Boolean,
+    isPaused: Boolean,
+    activeColor: Color,
+    onStart: () -> Unit,
+    onPause: () -> Unit,
+    onReset: () -> Unit,
+    onSkipPhase: () -> Unit
+) {
+    Row(
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        FilledTonalIconButton(
+            onClick = onReset,
+            modifier = Modifier.size(38.dp),
+            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                containerColor = Color.White.copy(alpha = 0.10f),
+                contentColor = Color.White
+            )
+        ) {
+            Icon(Icons.Rounded.Refresh, contentDescription = "Reset", modifier = Modifier.size(17.dp))
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        FilledTonalButton(
+            onClick = { if (isRunning) onPause() else onStart() },
+            modifier = Modifier
+                .height(40.dp)
+                .width(125.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
+                containerColor = activeColor,
+                contentColor = Color.Black
+            )
+        ) {
+            Icon(
+                imageVector = if (isRunning) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                contentDescription = if (isRunning) "Pause" else "Start",
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = if (isRunning) "Pause" else if (isPaused) "Resume" else "Start",
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        FilledTonalIconButton(
+            onClick = onSkipPhase,
+            modifier = Modifier.size(38.dp),
+            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                containerColor = Color.White.copy(alpha = 0.10f),
+                contentColor = Color.White
+            )
+        ) {
+            Icon(Icons.Rounded.SkipNext, contentDescription = "Skip Phase", modifier = Modifier.size(17.dp))
+        }
+    }
+}
+
+@Composable
+private fun SlidersAndSettingsCard(
+    state: PomodoroState,
+    albumPrimary: Color,
+    onWorkDurationChange: (Int) -> Unit,
+    onBreakDurationChange: (Int) -> Unit,
+    onAutoPauseChange: (Boolean) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.White.copy(alpha = 0.04f))
+            .padding(12.dp)
+    ) {
+        // Work Duration Slider Row (15 to 60m)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Work",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.White
+            )
+            Text(
+                text = "${state.workDurationMinutes} min",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = albumPrimary
+            )
+        }
+
+        Slider(
+            value = state.workDurationMinutes.toFloat(),
+            onValueChange = { onWorkDurationChange(it.roundToInt()) },
+            valueRange = 15f..60f,
+            steps = 44,
+            modifier = Modifier.height(28.dp),
+            colors = SliderDefaults.colors(
+                thumbColor = albumPrimary,
+                activeTrackColor = albumPrimary,
+                inactiveTrackColor = Color.White.copy(alpha = 0.15f)
+            )
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Break Duration Slider Row (0 to 25m)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Break",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.White
+            )
+            Text(
+                text = if (state.breakDurationMinutes == 0) "No Break" else "${state.breakDurationMinutes} min",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFFFB74D)
+            )
+        }
+
+        Slider(
+            value = state.breakDurationMinutes.toFloat(),
+            onValueChange = { onBreakDurationChange(it.roundToInt()) },
+            valueRange = 0f..25f,
+            steps = 24,
+            modifier = Modifier.height(28.dp),
+            colors = SliderDefaults.colors(
+                thumbColor = Color(0xFFFFB74D),
+                activeTrackColor = Color(0xFFFFB74D),
+                inactiveTrackColor = Color.White.copy(alpha = 0.15f)
+            )
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Presets Chips
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            QuickPresetChip(
+                label = "25/5",
+                isSelected = state.workDurationMinutes == 25 && state.breakDurationMinutes == 5,
+                onClick = {
+                    onWorkDurationChange(25)
+                    onBreakDurationChange(5)
+                },
+                modifier = Modifier.weight(1f)
+            )
+            QuickPresetChip(
+                label = "50/10",
+                isSelected = state.workDurationMinutes == 50 && state.breakDurationMinutes == 10,
+                onClick = {
+                    onWorkDurationChange(50)
+                    onBreakDurationChange(10)
+                },
+                modifier = Modifier.weight(1f)
+            )
+            QuickPresetChip(
+                label = "15/0",
+                isSelected = state.workDurationMinutes == 15 && state.breakDurationMinutes == 0,
+                onClick = {
+                    onWorkDurationChange(15)
+                    onBreakDurationChange(0)
+                },
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Auto-pause toggle row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Pause music on break",
+                fontSize = 11.sp,
+                color = Color.White.copy(alpha = 0.75f)
+            )
+
+            Switch(
+                checked = state.autoPauseSpotifyOnBreak,
+                onCheckedChange = onAutoPauseChange,
+                modifier = Modifier.height(24.dp),
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = albumPrimary,
+                    uncheckedThumbColor = Color.White.copy(alpha = 0.5f),
+                    uncheckedTrackColor = Color.White.copy(alpha = 0.15f)
+                )
+            )
         }
     }
 }
@@ -527,15 +609,15 @@ private fun QuickPresetChip(
     val albumColors = LocalAlbumArtColors.current
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(if (isSelected) albumColors.tonalPrimary.copy(alpha = 0.20f) else Color.White.copy(alpha = 0.06f))
             .border(
                 width = 1.dp,
                 color = if (isSelected) albumColors.tonalPrimary.copy(alpha = 0.60f) else Color.Transparent,
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(8.dp)
             )
             .clickable(onClick = onClick)
-            .padding(vertical = 7.dp),
+            .padding(vertical = 5.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
