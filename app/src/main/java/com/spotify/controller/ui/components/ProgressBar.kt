@@ -2,16 +2,21 @@ package com.spotify.controller.ui.components
 
 import android.os.SystemClock
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,10 +27,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -49,8 +61,10 @@ fun ProgressBar(
     modifier: Modifier = Modifier
 ) {
     val albumColors = LocalAlbumArtColors.current
+    val haptic = LocalHapticFeedback.current
     var isDragging by remember { mutableStateOf(false) }
     var dragFraction by remember { mutableFloatStateOf(0f) }
+    var lastHapticSecond by remember { mutableLongStateOf(0L) }
 
     // Smooth monotonic clock: avoids 1-second background polling hiccups
     var currentBaseProgress by remember { mutableLongStateOf(progressMs) }
@@ -88,16 +102,23 @@ fun ProgressBar(
     } else 0f
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // Pixel-perfect Canvas Scrubber
+        // Pixel-perfect Canvas Scrubber with generous touch slop and TalkBack semantics
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(28.dp)
+                .height(36.dp)
+                .semantics {
+                    progressBarRangeInfo = ProgressBarRangeInfo(
+                        current = progressFraction,
+                        range = 0f..1f
+                    )
+                }
                 .pointerInput(durationMs) {
                     detectTapGestures { offset ->
                         if (size.width > 0 && durationMs > 0) {
                             val newFraction = (offset.x / size.width).coerceIn(0f, 1f)
                             val targetMs = (newFraction * durationMs).toLong()
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onSeek(targetMs)
                         }
                     }
@@ -108,11 +129,13 @@ fun ProgressBar(
                             if (size.width > 0) {
                                 isDragging = true
                                 dragFraction = (offset.x / size.width).coerceIn(0f, 1f)
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             }
                         },
                         onDragEnd = {
                             isDragging = false
                             val targetMs = (dragFraction * durationMs).toLong()
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onSeek(targetMs)
                         },
                         onDragCancel = {
@@ -121,7 +144,13 @@ fun ProgressBar(
                         onDrag = { change, _ ->
                             change.consume()
                             if (size.width > 0) {
-                                dragFraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                                val frac = (change.position.x / size.width).coerceIn(0f, 1f)
+                                dragFraction = frac
+                                val currentSec = ((frac * durationMs) / 1000f).toLong()
+                                if (currentSec != lastHapticSecond) {
+                                    lastHapticSecond = currentSec
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
                             }
                         }
                     )
@@ -130,7 +159,7 @@ fun ProgressBar(
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val trackY = size.height / 2f
                 val strokePx = 3.dp.toPx()
-                val thumbRadiusPx = if (isDragging) 6.5.dp.toPx() else 4.5.dp.toPx()
+                val thumbRadiusPx = if (isDragging) 7.5.dp.toPx() else 4.5.dp.toPx()
                 val currentX = (size.width * progressFraction).coerceIn(0f, size.width)
 
                 // 1. Inactive background track
@@ -165,6 +194,35 @@ fun ProgressBar(
                     radius = thumbRadiusPx * 0.60f,
                     center = Offset(currentX, trackY)
                 )
+            }
+
+            // Floating Time Preview Bubble during drag
+            if (isDragging) {
+                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                    val thumbXPx = constraints.maxWidth.toFloat() * progressFraction
+                    val bubbleWidthPx = with(LocalDensity.current) { 48.dp.toPx() }
+                    val halfBubbleWidthPx = bubbleWidthPx / 2f
+                    val bubbleOffsetXDp = with(LocalDensity.current) {
+                        (thumbXPx - halfBubbleWidthPx)
+                            .coerceIn(0f, (constraints.maxWidth - bubbleWidthPx).coerceAtLeast(0f))
+                            .toDp()
+                    }
+                    Box(
+                        modifier = Modifier
+                            .offset(x = bubbleOffsetXDp, y = (-2).dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFF161622))
+                            .border(0.5.dp, albumColors.tonalPrimary.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = formatDuration(displayProgressMs),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
             }
         }
 

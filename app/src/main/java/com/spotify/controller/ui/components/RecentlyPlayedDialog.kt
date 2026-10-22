@@ -1,5 +1,11 @@
 package com.spotify.controller.ui.components
 
+import android.content.res.Configuration
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,12 +36,17 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -57,6 +68,10 @@ fun RecentlyPlayedDialog(
     onDismiss: () -> Unit
 ) {
     val albumColors = LocalAlbumArtColors.current
+    val haptic = LocalHapticFeedback.current
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val columnsCount = if (isLandscape) 5 else 4
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -64,13 +79,13 @@ fun RecentlyPlayedDialog(
     ) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth(0.95f)
+                .fillMaxWidth(if (isLandscape) 0.88f else 0.95f)
                 .heightIn(max = 580.dp)
                 .padding(vertical = 12.dp),
             shape = RoundedCornerShape(24.dp),
-            color = Color(0xFF16161E),
+            color = Color(0xFF14141E),
             tonalElevation = 6.dp,
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2E2E3E))
+            border = androidx.compose.foundation.BorderStroke(1.dp, albumColors.tonalPrimary.copy(alpha = 0.22f))
         ) {
             Column(
                 modifier = Modifier
@@ -154,18 +169,16 @@ fun RecentlyPlayedDialog(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 if (items.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 40.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                color = albumColors.tonalPrimary,
-                                modifier = Modifier.size(32.dp)
-                            )
-                        } else {
+                    if (isLoading) {
+                        // Shimmer Skeleton Tiles
+                        ShimmerGridPlaceholder(columnsCount = columnsCount)
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
@@ -183,9 +196,9 @@ fun RecentlyPlayedDialog(
                         }
                     }
                 } else {
-                    // 2 rows of 5 tiles in each row (5 columns)
+                    // Responsive grid: 4 columns in Portrait, 5 in Landscape
                     LazyVerticalGrid(
-                        columns = GridCells.Fixed(5),
+                        columns = GridCells.Fixed(columnsCount),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -193,11 +206,59 @@ fun RecentlyPlayedDialog(
                         items(items, key = { it.id }) { item ->
                             PlaylistTile(
                                 item = item,
-                                onClick = { onSelectItem(item) }
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onSelectItem(item)
+                                }
                             )
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShimmerGridPlaceholder(columnsCount: Int) {
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val alpha by transition.animateFloat(
+        initialValue = 0.08f,
+        targetValue = 0.22f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 800),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "shimmerAlpha"
+    )
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(columnsCount),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth(),
+        userScrollEnabled = false
+    ) {
+        items(columnsCount * 2) {
+            Column(
+                modifier = Modifier.padding(2.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color.White.copy(alpha = alpha))
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.8f)
+                        .height(10.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color.White.copy(alpha = alpha * 0.8f))
+                )
             }
         }
     }

@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Devices
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.ScreenRotation
 import androidx.compose.material.icons.rounded.Settings
@@ -162,14 +163,14 @@ fun LandscapePlayerLayout(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Device Name (Interactive Spotify Connect)
+                // Device Name (Interactive Spotify Connect with Dropdown Affordance)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(10.dp))
                         .clickable(onClick = onOpenDeviceSelector)
-                        .background(Color.White.copy(alpha = 0.05f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .background(Color.White.copy(alpha = 0.08f))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Devices,
@@ -182,7 +183,16 @@ fun LandscapePlayerLayout(
                         text = playbackState.deviceName ?: "Spotify Connect",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color.White.copy(alpha = 0.85f)
+                        color = Color.White.copy(alpha = 0.85f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        imageVector = Icons.Rounded.KeyboardArrowDown,
+                        contentDescription = "Select Device",
+                        tint = Color.White.copy(alpha = 0.5f),
+                        modifier = Modifier.size(14.dp)
                     )
                 }
 

@@ -379,13 +379,13 @@ fun SpicyLyricsView(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(end = 12.dp, top = 6.dp)
-                .size(34.dp)
+                .size(40.dp)
         ) {
             Icon(
                 imageVector = Icons.Rounded.Close,
                 contentDescription = "Close Lyrics",
-                tint = Color.White.copy(alpha = 0.7f),
-                modifier = Modifier.size(18.dp)
+                tint = Color.White.copy(alpha = 0.85f),
+                modifier = Modifier.size(20.dp)
             )
         }
 
@@ -453,7 +453,7 @@ fun SpicyLyricLine(
     )
 
     val lineAlpha by animateFloatAsState(
-        targetValue = if (isActive) 1.0f else 0.32f,
+        targetValue = if (isActive) 1.0f else 0.42f,
         animationSpec = tween(durationMillis = 200),
         label = "lineAlpha"
     )

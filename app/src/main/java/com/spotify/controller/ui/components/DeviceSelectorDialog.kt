@@ -45,6 +45,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import com.spotify.controller.data.model.DeviceIconType
 import com.spotify.controller.data.model.SpotifyDevice
 import com.spotify.controller.ui.theme.LocalAlbumArtColors
@@ -58,6 +60,7 @@ fun DeviceSelectorDialog(
     onDismiss: () -> Unit
 ) {
     val albumColors = LocalAlbumArtColors.current
+    val haptic = LocalHapticFeedback.current
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -68,9 +71,9 @@ fun DeviceSelectorDialog(
                 .fillMaxWidth(0.90f)
                 .padding(vertical = 16.dp),
             shape = RoundedCornerShape(24.dp),
-            color = Color(0xFF16161E),
+            color = Color(0xFF14141E),
             tonalElevation = 6.dp,
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2E2E3E))
+            border = androidx.compose.foundation.BorderStroke(1.dp, albumColors.tonalPrimary.copy(alpha = 0.22f))
         ) {
             Column(
                 modifier = Modifier
@@ -88,13 +91,13 @@ fun DeviceSelectorDialog(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF1DB954).copy(alpha = 0.15f)),
+                                .background(albumColors.tonalPrimary.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Devices,
                                 contentDescription = null,
-                                tint = Color(0xFF1DB954),
+                                tint = albumColors.tonalPrimary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -190,7 +193,10 @@ fun DeviceSelectorDialog(
                         items(devices, key = { it.id }) { device ->
                             DeviceItemRow(
                                 device = device,
-                                onSelect = { onSelectDevice(device.id) }
+                                onSelect = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onSelectDevice(device.id)
+                                }
                             )
                         }
                     }

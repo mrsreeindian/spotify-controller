@@ -181,9 +181,9 @@ fun PomodoroDialog(
                 .fillMaxWidth(if (isLandscape) 0.82f else 0.90f)
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             shape = RoundedCornerShape(24.dp),
-            color = Color(0xFF16161E),
+            color = Color(0xFF14141E),
             tonalElevation = 6.dp,
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2E2E3E))
+            border = androidx.compose.foundation.BorderStroke(1.dp, albumColors.tonalPrimary.copy(alpha = 0.22f))
         ) {
             if (isLandscape) {
                 // Landscape: 2-column side-by-side layout (zero scroll)
@@ -511,6 +511,50 @@ private fun SlidersAndSettingsCard(
             .background(Color.White.copy(alpha = 0.04f))
             .padding(12.dp)
     ) {
+        // Quick Presets Row (25/5 Classic, 45/15 Deep, 50/10 Ultradian)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val presets = listOf(
+                Triple("25 / 5", 25, 5),
+                Triple("45 / 15", 45, 15),
+                Triple("50 / 10", 50, 10)
+            )
+            for ((label, work, brk) in presets) {
+                val isSelected = state.workDurationMinutes == work && state.breakDurationMinutes == brk
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable {
+                            onWorkDurationChange(work)
+                            onBreakDurationChange(brk)
+                        }
+                        .background(
+                            if (isSelected) albumPrimary.copy(alpha = 0.20f)
+                            else Color.White.copy(alpha = 0.05f)
+                        )
+                        .border(
+                            1.dp,
+                            if (isSelected) albumPrimary.copy(alpha = 0.60f) else Color.Transparent,
+                            RoundedCornerShape(8.dp)
+                        )
+                        .padding(vertical = 5.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = label,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSelected) albumPrimary else Color.White.copy(alpha = 0.8f)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
         // Work Duration Slider Row (15 to 60m)
         Row(
             modifier = Modifier.fillMaxWidth(),
