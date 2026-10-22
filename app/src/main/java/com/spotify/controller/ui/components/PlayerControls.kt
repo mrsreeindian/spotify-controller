@@ -37,13 +37,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import com.spotify.controller.data.model.RepeatMode
 import com.spotify.controller.ui.theme.LocalAlbumArtColors
 import com.spotify.controller.ui.theme.SpotifyGreen
 
 /**
- * Minimalist playback control bar with Material 3 tonal spot theming.
+ * Minimalist playback control bar with Material 3 tonal spot theming and WCAG 2.2 compliant touch targets.
  */
 @Composable
 fun PlayerControls(
@@ -60,29 +62,36 @@ fun PlayerControls(
     modifier: Modifier = Modifier
 ) {
     val albumColors = LocalAlbumArtColors.current
+    val haptic = LocalHapticFeedback.current
 
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Shuffle Button (Minimalist borderless)
+        // Shuffle Button (Ergonomic 48dp touch target)
         IconButton(
-            onClick = onShuffleToggle,
-            modifier = Modifier.size(38.dp)
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onShuffleToggle()
+            },
+            modifier = Modifier.size(48.dp)
         ) {
             Icon(
                 imageVector = Icons.Rounded.Shuffle,
-                contentDescription = "Shuffle",
+                contentDescription = "Shuffle: ${if (isShuffle) "On" else "Off"}",
                 tint = if (isShuffle) albumColors.tonalPrimary else Color.White.copy(alpha = 0.45f),
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(22.dp)
             )
         }
 
-        // Previous Track Button (Refined 44dp tonal circle)
+        // Previous Track Button (Refined 48dp tonal circle)
         FilledTonalIconButton(
-            onClick = onPrevious,
-            modifier = Modifier.size(44.dp),
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onPrevious()
+            },
+            modifier = Modifier.size(48.dp),
             colors = IconButtonDefaults.filledTonalIconButtonColors(
                 containerColor = Color.White.copy(alpha = 0.12f),
                 contentColor = Color.White
@@ -91,14 +100,17 @@ fun PlayerControls(
             Icon(
                 imageVector = Icons.Rounded.SkipPrevious,
                 contentDescription = "Previous Track",
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(26.dp)
             )
         }
 
-        // Play / Pause Primary Button (Proportional 58dp M3 Primary FAB)
+        // Play / Pause Primary Button (Proportional 60dp M3 Primary FAB)
         FilledIconButton(
-            onClick = onPlayPause,
-            modifier = Modifier.size(58.dp),
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onPlayPause()
+            },
+            modifier = Modifier.size(60.dp),
             colors = IconButtonDefaults.filledIconButtonColors(
                 containerColor = albumColors.tonalPrimary,
                 contentColor = albumColors.tonalOnPrimary
@@ -114,15 +126,18 @@ fun PlayerControls(
                 Icon(
                     imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                     contentDescription = if (playing) "Pause" else "Play",
-                    modifier = Modifier.size(30.dp)
+                    modifier = Modifier.size(32.dp)
                 )
             }
         }
 
-        // Next Track Button (Refined 44dp tonal circle)
+        // Next Track Button (Refined 48dp tonal circle)
         FilledTonalIconButton(
-            onClick = onNext,
-            modifier = Modifier.size(44.dp),
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onNext()
+            },
+            modifier = Modifier.size(48.dp),
             colors = IconButtonDefaults.filledTonalIconButtonColors(
                 containerColor = Color.White.copy(alpha = 0.12f),
                 contentColor = Color.White
@@ -131,11 +146,11 @@ fun PlayerControls(
             Icon(
                 imageVector = Icons.Rounded.SkipNext,
                 contentDescription = "Next Track",
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(26.dp)
             )
         }
 
-        // Repeat Mode Button (Minimalist borderless)
+        // Repeat Mode Button (Ergonomic 48dp touch target)
         val repeatIcon = when (repeatMode) {
             RepeatMode.TRACK -> Icons.Rounded.RepeatOne
             else -> Icons.Rounded.Repeat
@@ -143,21 +158,24 @@ fun PlayerControls(
         val isRepeatActive = repeatMode != RepeatMode.OFF
 
         IconButton(
-            onClick = onRepeatToggle,
-            modifier = Modifier.size(38.dp)
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onRepeatToggle()
+            },
+            modifier = Modifier.size(48.dp)
         ) {
             Icon(
                 imageVector = repeatIcon,
                 contentDescription = "Repeat: $repeatMode",
                 tint = if (isRepeatActive) albumColors.tonalPrimary else Color.White.copy(alpha = 0.45f),
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(22.dp)
             )
         }
     }
 }
 
 /**
- * Minimalist, spring-animated Like Button.
+ * Minimalist, spring-animated Like Button with tactile haptics.
  */
 @Composable
 fun LikeButton(
@@ -165,8 +183,9 @@ fun LikeButton(
     onLikeToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptic = LocalHapticFeedback.current
     val heartScale by animateFloatAsState(
-        targetValue = if (isLiked) 1.2f else 1.0f,
+        targetValue = if (isLiked) 1.25f else 1.0f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
@@ -185,16 +204,19 @@ fun LikeButton(
     )
 
     IconButton(
-        onClick = onLikeToggle,
+        onClick = {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            onLikeToggle()
+        },
         modifier = modifier
-            .size(40.dp)
+            .size(48.dp)
             .scale(heartScale)
     ) {
         Icon(
             imageVector = if (isLiked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
             contentDescription = if (isLiked) "Remove from Liked Songs" else "Save to Liked Songs",
             tint = tintColor,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(26.dp)
         )
     }
 }

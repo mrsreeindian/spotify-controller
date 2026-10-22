@@ -31,10 +31,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 
 /**
- * Pixel-perfect Minimalist Volume Bar.
+ * Pixel-perfect Minimalist Volume Bar with ergonomic touch targets and tactile haptics.
  * The dot and track share the exact same canvas coordinates.
  */
 @Composable
@@ -43,9 +45,11 @@ fun VolumeBar(
     onVolumeChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptic = LocalHapticFeedback.current
     var isDragging by remember { mutableStateOf(false) }
     var dragFraction by remember { mutableFloatStateOf(volumePercent / 100f) }
     var previousNonZeroVolume by remember { mutableIntStateOf(if (volumePercent > 0) volumePercent else 50) }
+    var lastHapticStep by remember { mutableIntStateOf(volumePercent / 10) }
 
     val currentFraction = if (isDragging) dragFraction else (volumePercent / 100f).coerceIn(0f, 1f)
     val displayPercent = (currentFraction * 100).toInt()
@@ -59,11 +63,13 @@ fun VolumeBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp),
+            .padding(horizontal = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Ergonomic 44dp mute/unmute touch target
         IconButton(
             onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 if (displayPercent > 0) {
                     previousNonZeroVolume = displayPercent
                     onVolumeChange(0)
@@ -71,28 +77,30 @@ fun VolumeBar(
                     onVolumeChange(previousNonZeroVolume)
                 }
             },
-            modifier = Modifier.size(28.dp)
+            modifier = Modifier.size(44.dp)
         ) {
             Icon(
                 imageVector = volumeIcon,
-                contentDescription = "Mute / Unmute",
-                tint = Color.White.copy(alpha = 0.5f),
-                modifier = Modifier.size(16.dp)
+                contentDescription = if (displayPercent == 0) "Unmute" else "Mute",
+                tint = Color.White.copy(alpha = 0.65f),
+                modifier = Modifier.size(19.dp)
             )
         }
 
-        Spacer(modifier = Modifier.width(6.dp))
+        Spacer(modifier = Modifier.width(2.dp))
 
-        // Pixel-perfect Volume Scrubber Box
+        // Pixel-perfect Volume Scrubber Box with generous 36dp touch height
         Box(
             modifier = Modifier
                 .weight(1f)
-                .height(28.dp)
+                .height(36.dp)
                 .pointerInput(Unit) {
                     detectTapGestures { offset ->
                         if (size.width > 0) {
                             val newFraction = (offset.x / size.width).coerceIn(0f, 1f)
-                            onVolumeChange((newFraction * 100).toInt())
+                            val targetVol = (newFraction * 100).toInt()
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onVolumeChange(targetVol)
                         }
                     }
                 }
@@ -102,11 +110,14 @@ fun VolumeBar(
                             if (size.width > 0) {
                                 isDragging = true
                                 dragFraction = (offset.x / size.width).coerceIn(0f, 1f)
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             }
                         },
                         onDragEnd = {
                             isDragging = false
-                            onVolumeChange((dragFraction * 100).toInt())
+                            val targetVol = (dragFraction * 100).toInt()
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onVolumeChange(targetVol)
                         },
                         onDragCancel = {
                             isDragging = false
@@ -114,7 +125,13 @@ fun VolumeBar(
                         onDrag = { change, _ ->
                             change.consume()
                             if (size.width > 0) {
-                                dragFraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                                val frac = (change.position.x / size.width).coerceIn(0f, 1f)
+                                dragFraction = frac
+                                val step = (frac * 10).toInt()
+                                if (step != lastHapticStep) {
+                                    lastHapticStep = step
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
                             }
                         }
                     )
@@ -123,7 +140,7 @@ fun VolumeBar(
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val trackY = size.height / 2f
                 val strokePx = 3.dp.toPx()
-                val thumbRadiusPx = if (isDragging) 5.5.dp.toPx() else 4.dp.toPx()
+                val thumbRadiusPx = if (isDragging) 6.dp.toPx() else 4.dp.toPx()
                 val currentX = (size.width * currentFraction).coerceIn(0f, size.width)
 
                 // 1. Inactive background track
@@ -155,20 +172,22 @@ fun VolumeBar(
             }
         }
 
-        Spacer(modifier = Modifier.width(6.dp))
+        Spacer(modifier = Modifier.width(2.dp))
 
+        // Ergonomic 44dp volume-up touch target
         IconButton(
             onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 val bumped = (displayPercent + 10).coerceAtMost(100)
                 onVolumeChange(bumped)
             },
-            modifier = Modifier.size(28.dp)
+            modifier = Modifier.size(44.dp)
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.VolumeUp,
                 contentDescription = "Volume Up",
-                tint = Color.White.copy(alpha = 0.5f),
-                modifier = Modifier.size(16.dp)
+                tint = Color.White.copy(alpha = 0.65f),
+                modifier = Modifier.size(19.dp)
             )
         }
     }

@@ -8,7 +8,8 @@
 
     <application
         android:name=".SpotifyControllerApp"
-        android:allowBackup="true"
+        android:allowBackup="false"
+        android:usesCleartextTraffic="false"
         android:icon="@android:drawable/ic_media_play"
         android:label="@string/app_name"
         android:roundIcon="@android:drawable/ic_media_play"
@@ -42,9 +43,6 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.spotify.controller.widget.ACTION_PLAY_PAUSE" />
-                <action android:name="com.spotify.controller.widget.ACTION_NEXT" />
-                <action android:name="com.spotify.controller.widget.ACTION_PREV" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
@@ -57,9 +55,6 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.spotify.controller.widget.ACTION_PLAY_PAUSE" />
-                <action android:name="com.spotify.controller.widget.ACTION_NEXT" />
-                <action android:name="com.spotify.controller.widget.ACTION_PREV" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"

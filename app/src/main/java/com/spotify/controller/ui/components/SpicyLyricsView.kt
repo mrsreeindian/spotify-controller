@@ -74,6 +74,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
@@ -117,6 +119,7 @@ fun SpicyLyricsView(
     modifier: Modifier = Modifier
 ) {
     val albumColors = LocalAlbumArtColors.current
+    val haptic = LocalHapticFeedback.current
     val listState = rememberLazyListState()
 
     // Camera punch-hole clearance: guarantees text starts safely to the right of any cutout
@@ -357,11 +360,13 @@ fun SpicyLyricsView(
                                     isActive = isActive,
                                     currentPositionMs = if (isActive) liveProgressMs else 0L,
                                     onLineClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         userScrolled = false
                                         manualSyncTrigger = SystemClock.elapsedRealtime()
                                         onSeekTo(line.startTimeMs)
                                     },
                                     onWordClick = { wordStartMs ->
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         userScrolled = false
                                         manualSyncTrigger = SystemClock.elapsedRealtime()
                                         onSeekTo(wordStartMs)
@@ -374,19 +379,22 @@ fun SpicyLyricsView(
             }
         }
 
-        // Minimal Close Button
+        // Minimal Close Button with Ergonomic 48dp Touch Area
         IconButton(
-            onClick = onClose,
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClose()
+            },
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(end = 12.dp, top = 6.dp)
-                .size(40.dp)
+                .padding(end = 8.dp, top = 4.dp)
+                .size(48.dp)
         ) {
             Icon(
                 imageVector = Icons.Rounded.Close,
                 contentDescription = "Close Lyrics",
                 tint = Color.White.copy(alpha = 0.85f),
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(22.dp)
             )
         }
 
@@ -401,6 +409,7 @@ fun SpicyLyricsView(
         ) {
             Surface(
                 onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     userScrolled = false
                     manualSyncTrigger = SystemClock.elapsedRealtime()
                 },

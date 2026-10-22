@@ -34,6 +34,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -83,6 +86,7 @@ fun PortraitPlayerLayout(
     onOpenQuickPlay: () -> Unit = {}
 ) {
     val albumColors = LocalAlbumArtColors.current
+    val haptic = LocalHapticFeedback.current
     val track = playbackState.track
 
     val layoutDirection = LocalLayoutDirection.current
@@ -113,16 +117,19 @@ fun PortraitPlayerLayout(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .clickable(onClick = onOpenDeviceSelector)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onOpenDeviceSelector()
+                    }
                     .background(Color.White.copy(alpha = 0.08f))
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Devices,
                     contentDescription = "Device",
                     tint = albumColors.tonalPrimary,
-                    modifier = Modifier.size(15.dp)
+                    modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
@@ -142,38 +149,42 @@ fun PortraitPlayerLayout(
                 )
             }
 
-            // Minimalist Action Icons
+            // Minimalist Action Icons with Ergonomic 44dp Touch Targets
             Row(verticalAlignment = Alignment.CenterVertically) {
                 PomodoroTopBarPill(
                     state = pomodoroState,
                     onClick = onOpenPomodoro
                 )
 
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(4.dp))
 
                 IconButton(
-                    onClick = onToggleOrientation,
-                    modifier = Modifier.size(34.dp)
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onToggleOrientation()
+                    },
+                    modifier = Modifier.size(44.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.ScreenRotation,
                         contentDescription = "Switch to Landscape Mode",
                         tint = Color.White.copy(alpha = 0.75f),
-                        modifier = Modifier.size(19.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.width(4.dp))
-
                 IconButton(
-                    onClick = onOpenSettings,
-                    modifier = Modifier.size(34.dp)
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onOpenSettings()
+                    },
+                    modifier = Modifier.size(44.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Settings,
                         contentDescription = "Spotify Setup",
                         tint = Color.White.copy(alpha = 0.75f),
-                        modifier = Modifier.size(19.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -235,7 +246,8 @@ fun PortraitPlayerLayout(
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE)
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 val subtitleText = when {
@@ -250,7 +262,8 @@ fun PortraitPlayerLayout(
                                     fontWeight = FontWeight.Normal,
                                     color = Color.White.copy(alpha = 0.65f),
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE)
                                 )
                             }
 

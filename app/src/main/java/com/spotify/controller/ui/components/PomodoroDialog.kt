@@ -49,7 +49,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -73,17 +75,21 @@ fun PomodoroTopBarPill(
     modifier: Modifier = Modifier
 ) {
     val albumColors = LocalAlbumArtColors.current
+    val haptic = LocalHapticFeedback.current
 
     if (state.isIdle) {
         IconButton(
-            onClick = onClick,
-            modifier = modifier.size(34.dp)
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            },
+            modifier = modifier.size(44.dp)
         ) {
             Icon(
                 imageVector = Icons.Rounded.Timer,
                 contentDescription = "Pomodoro Timer",
                 tint = Color.White.copy(alpha = 0.75f),
-                modifier = Modifier.size(19.dp)
+                modifier = Modifier.size(20.dp)
             )
         }
     } else {
@@ -100,8 +106,11 @@ fun PomodoroTopBarPill(
                 .clip(RoundedCornerShape(16.dp))
                 .background(phaseColor.copy(alpha = 0.20f))
                 .border(1.dp, phaseColor.copy(alpha = 0.50f), RoundedCornerShape(16.dp))
-                .clickable(onClick = onClick)
-                .padding(horizontal = 9.dp, vertical = 4.dp),
+                .clickable {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onClick()
+                }
+                .padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -316,13 +325,13 @@ private fun DialogHeader(
 
         IconButton(
             onClick = onDismiss,
-            modifier = Modifier.size(28.dp)
+            modifier = Modifier.size(44.dp)
         ) {
             Icon(
                 imageVector = Icons.Rounded.Close,
                 contentDescription = "Close",
                 tint = Color.White.copy(alpha = 0.7f),
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(20.dp)
             )
         }
     }
@@ -437,29 +446,36 @@ private fun ActionControls(
     onReset: () -> Unit,
     onSkipPhase: () -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
     Row(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
         FilledTonalIconButton(
-            onClick = onReset,
-            modifier = Modifier.size(38.dp),
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onReset()
+            },
+            modifier = Modifier.size(44.dp),
             colors = IconButtonDefaults.filledTonalIconButtonColors(
                 containerColor = Color.White.copy(alpha = 0.10f),
                 contentColor = Color.White
             )
         ) {
-            Icon(Icons.Rounded.Refresh, contentDescription = "Reset", modifier = Modifier.size(17.dp))
+            Icon(Icons.Rounded.Refresh, contentDescription = "Reset", modifier = Modifier.size(20.dp))
         }
 
         Spacer(modifier = Modifier.width(12.dp))
 
         FilledTonalButton(
-            onClick = { if (isRunning) onPause() else onStart() },
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                if (isRunning) onPause() else onStart()
+            },
             modifier = Modifier
-                .height(40.dp)
-                .width(125.dp),
-            shape = RoundedCornerShape(20.dp),
+                .height(44.dp)
+                .width(130.dp),
+            shape = RoundedCornerShape(22.dp),
             colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
                 containerColor = activeColor,
                 contentColor = Color.Black
@@ -468,7 +484,7 @@ private fun ActionControls(
             Icon(
                 imageVector = if (isRunning) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                 contentDescription = if (isRunning) "Pause" else "Start",
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
@@ -481,14 +497,17 @@ private fun ActionControls(
         Spacer(modifier = Modifier.width(12.dp))
 
         FilledTonalIconButton(
-            onClick = onSkipPhase,
-            modifier = Modifier.size(38.dp),
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onSkipPhase()
+            },
+            modifier = Modifier.size(44.dp),
             colors = IconButtonDefaults.filledTonalIconButtonColors(
                 containerColor = Color.White.copy(alpha = 0.10f),
                 contentColor = Color.White
             )
         ) {
-            Icon(Icons.Rounded.SkipNext, contentDescription = "Skip Phase", modifier = Modifier.size(17.dp))
+            Icon(Icons.Rounded.SkipNext, contentDescription = "Skip Phase", modifier = Modifier.size(20.dp))
         }
     }
 }

@@ -131,12 +131,15 @@ fun RecentlyPlayedDialog(
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(
-                            onClick = onRefresh,
-                            modifier = Modifier.size(32.dp)
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onRefresh()
+                            },
+                            modifier = Modifier.size(44.dp)
                         ) {
                             if (isLoading) {
                                 CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
+                                    modifier = Modifier.size(18.dp),
                                     strokeWidth = 2.dp,
                                     color = albumColors.tonalPrimary
                                 )
@@ -145,22 +148,23 @@ fun RecentlyPlayedDialog(
                                     imageVector = Icons.Rounded.Refresh,
                                     contentDescription = "Refresh",
                                     tint = Color.White.copy(alpha = 0.7f),
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
 
-                        Spacer(modifier = Modifier.width(4.dp))
-
                         IconButton(
-                            onClick = onDismiss,
-                            modifier = Modifier.size(32.dp)
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onDismiss()
+                            },
+                            modifier = Modifier.size(44.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Close,
                                 contentDescription = "Close",
                                 tint = Color.White.copy(alpha = 0.7f),
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }

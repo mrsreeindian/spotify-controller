@@ -64,6 +64,8 @@ class SpotifyAuthManager(
     suspend fun startAuth(clientId: String) {
         val verifier = generateCodeVerifier()
         credentialsRepository.saveCodeVerifier(verifier)
+        val state = generateState()
+        credentialsRepository.saveAuthState(state)
         val challenge = generateCodeChallenge(verifier)
 
         val authUri = Uri.parse(AUTH_ENDPOINT).buildUpon()
@@ -72,6 +74,7 @@ class SpotifyAuthManager(
             .appendQueryParameter("redirect_uri", REDIRECT_URI)
             .appendQueryParameter("code_challenge_method", "S256")
             .appendQueryParameter("code_challenge", challenge)
+            .appendQueryParameter("state", state)
             .appendQueryParameter("scope", SCOPES)
             .build()
 
@@ -91,6 +94,12 @@ class SpotifyAuthManager(
             val error = uri.getQueryParameter("error")
             if (error != null) {
                 return@withContext Result.failure(Exception("Spotify Auth Error: $error"))
+            }
+
+            val returnedState = uri.getQueryParameter("state")
+            val expectedState = credentialsRepository.getAuthState()
+            if (expectedState != null && (returnedState == null || returnedState != expectedState)) {
+                return@withContext Result.failure(Exception("OAuth state mismatch: possible CSRF attempt"))
             }
 
             val code = uri.getQueryParameter("code") ?: return@withContext Result.failure(Exception("No auth code in redirect"))
@@ -240,6 +249,12 @@ class SpotifyAuthManager(
 
     private fun generateCodeVerifier(): String {
         val bytes = ByteArray(64)
+        SecureRandom().nextBytes(bytes)
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+    }
+
+    private fun generateState(): String {
+        val bytes = ByteArray(32)
         SecureRandom().nextBytes(bytes)
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
     }

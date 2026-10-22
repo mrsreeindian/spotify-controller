@@ -23,6 +23,7 @@ class CredentialsRepository(private val context: Context) {
         val REFRESH_TOKEN = stringPreferencesKey("refresh_token")
         val TOKEN_EXPIRES_AT = longPreferencesKey("token_expires_at")
         val CODE_VERIFIER = stringPreferencesKey("code_verifier")
+        val AUTH_STATE = stringPreferencesKey("auth_state")
         val ORIENTATION_MODE = stringPreferencesKey("orientation_mode")
     }
 
@@ -71,6 +72,20 @@ class CredentialsRepository(private val context: Context) {
             verifier = prefs[Keys.CODE_VERIFIER]
         }
         return verifier
+    }
+
+    suspend fun saveAuthState(state: String) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.AUTH_STATE] = state
+        }
+    }
+
+    suspend fun getAuthState(): String? {
+        var state: String? = null
+        context.dataStore.edit { prefs ->
+            state = prefs[Keys.AUTH_STATE]
+        }
+        return state
     }
 
     suspend fun saveOrientationMode(mode: String) {
