@@ -66,13 +66,33 @@ class SpotifyRepository(
         pollingJob = null
     }
 
+    private var lastLikedTrackId: String? = null
+    private var lastLikedStatus: Boolean = false
+    private var lastLikedCheckTimestamp: Long = 0L
+
     suspend fun pollPlaybackState() {
         val creds = credentials.value
         val token = spotifyAuthManager.refreshTokenIfNeeded(creds) ?: return
-        val state = spotifyApiService.getPlaybackState(token)
-        if (state != null) {
-            _playbackState.value = state
+
+        val currentTrackId = _playbackState.value.track?.id?.removePrefix("spotify:track:")?.trim()
+        val now = android.os.SystemClock.elapsedRealtime()
+        val isSameTrack = (!currentTrackId.isNullOrBlank() && currentTrackId == lastLikedTrackId)
+        val shouldCheckLiked = !isSameTrack || (now - lastLikedCheckTimestamp > 30_000L)
+
+        val cachedLiked = if (isSameTrack && !shouldCheckLiked) lastLikedStatus else null
+        val state = spotifyApiService.getPlaybackState(token, cachedLiked) ?: return
+
+        val stateTrack = state.track
+        if (stateTrack != null && stateTrack.id.isNotBlank()) {
+            val trackId = stateTrack.id.removePrefix("spotify:track:").trim()
+            lastLikedTrackId = trackId
+            lastLikedStatus = stateTrack.isLiked
+            if (shouldCheckLiked) {
+                lastLikedCheckTimestamp = now
+            }
         }
+
+        _playbackState.value = state
     }
 
     suspend fun togglePlayPause() {
@@ -160,12 +180,20 @@ class SpotifyRepository(
 
     suspend fun toggleLike() {
         val currentTrack = _playbackState.value.track ?: return
+        val trackId = currentTrack.id.removePrefix("spotify:track:").trim()
+        if (trackId.isBlank()) return
+
         val newLiked = !currentTrack.isLiked
+        lastLikedTrackId = trackId
+        lastLikedStatus = newLiked
+        lastLikedCheckTimestamp = android.os.SystemClock.elapsedRealtime()
         _playbackState.update { it.copy(track = currentTrack.copy(isLiked = newLiked)) }
 
         val token = getValidToken() ?: return
-        val success = spotifyApiService.setLiked(token, currentTrack.id, newLiked)
+        val success = spotifyApiService.setLiked(token, trackId, newLiked)
         if (!success) {
+            // Revert on failure
+            lastLikedStatus = !newLiked
             _playbackState.update { it.copy(track = currentTrack.copy(isLiked = !newLiked)) }
         }
     }
@@ -224,13 +252,50 @@ class SpotifyRepository(
     }
 
     suspend fun testConnection(clientId: String, secret: String, directToken: String): Result<String> {
-        val tokenToTest = if (directToken.isNotBlank()) {
-            directToken
-        } else {
-            // Check if existing access token or refresh
-            getValidToken() ?: return Result.failure(Exception("Please complete Spotify authorization."))
+        val cleanedToken = SpotifyCredentials.cleanToken(directToken)
+        val cleanedClientId = clientId.trim()
+        val cleanedSecret = secret.trim()
+
+        // 1. Direct developer token entered
+        if (cleanedToken.isNotBlank()) {
+            val apiRes = spotifyApiService.testConnection(cleanedToken)
+            return apiRes.map { displayName -> "Connected successfully as $displayName!" }
         }
-        return spotifyApiService.testConnection(tokenToTest)
+
+        // 2. Check if we have an active user session (accessToken or refreshToken)
+        val creds = credentials.value
+        val credsToUse = creds.copy(
+            clientId = if (cleanedClientId.isNotBlank()) cleanedClientId else creds.clientId,
+            clientSecret = if (cleanedSecret.isNotBlank()) cleanedSecret else creds.clientSecret
+        )
+
+        if (credsToUse.hasValidSession) {
+            val validToken = spotifyAuthManager.refreshTokenIfNeeded(credsToUse)
+            if (validToken != null) {
+                val apiRes = spotifyApiService.testConnection(validToken)
+                return apiRes.map { displayName -> "Connected successfully as $displayName!" }
+            } else {
+                return Result.failure(
+                    Exception("Spotify session expired or revoked. Please tap 'Authorize with Spotify Login' to reconnect.")
+                )
+            }
+        }
+
+        // 3. No active user session. If client credentials entered, test them directly
+        if (cleanedClientId.isNotBlank() && cleanedSecret.isNotBlank()) {
+            return spotifyAuthManager.testClientCredentials(cleanedClientId, cleanedSecret)
+        }
+
+        // 4. Only Client ID entered (PKCE flow, no secret)
+        if (cleanedClientId.isNotBlank()) {
+            return Result.failure(
+                Exception("Client ID saved. Please tap 'Authorize with Spotify Login' above to connect your account, or paste a Direct Access Token.")
+            )
+        }
+
+        return Result.failure(
+            Exception("Please enter your Spotify Client ID or a Direct Developer Token.")
+        )
     }
 
     private suspend fun getValidToken(): String? {

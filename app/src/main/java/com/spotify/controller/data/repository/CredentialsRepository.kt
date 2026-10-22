@@ -45,15 +45,15 @@ class CredentialsRepository(private val context: Context) {
         context.dataStore.edit { prefs ->
             prefs[Keys.CLIENT_ID] = clientId.trim()
             prefs[Keys.CLIENT_SECRET] = clientSecret.trim()
-            prefs[Keys.DIRECT_DEV_TOKEN] = directDevToken.trim()
+            prefs[Keys.DIRECT_DEV_TOKEN] = SpotifyCredentials.cleanToken(directDevToken)
         }
     }
 
     suspend fun saveTokens(accessToken: String, refreshToken: String?, expiresInSec: Long) {
         context.dataStore.edit { prefs ->
-            prefs[Keys.ACCESS_TOKEN] = accessToken
+            prefs[Keys.ACCESS_TOKEN] = SpotifyCredentials.cleanToken(accessToken)
             if (!refreshToken.isNullOrBlank()) {
-                prefs[Keys.REFRESH_TOKEN] = refreshToken
+                prefs[Keys.REFRESH_TOKEN] = refreshToken.trim()
             }
             prefs[Keys.TOKEN_EXPIRES_AT] = System.currentTimeMillis() + (expiresInSec * 1000L)
         }

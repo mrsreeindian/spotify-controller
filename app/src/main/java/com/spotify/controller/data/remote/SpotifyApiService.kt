@@ -5,6 +5,7 @@ import com.spotify.controller.data.model.PlaybackState
 import com.spotify.controller.data.model.QuickPlayItem
 import com.spotify.controller.data.model.QuickPlayType
 import com.spotify.controller.data.model.RepeatMode
+import com.spotify.controller.data.model.SpotifyCredentials
 import com.spotify.controller.data.model.SpotifyDevice
 import com.spotify.controller.data.model.Track
 import kotlinx.coroutines.Dispatchers
@@ -23,11 +24,59 @@ class SpotifyApiService(private val client: OkHttpClient) {
         private val EMPTY_BODY = "".toRequestBody("application/json".toMediaType())
     }
 
+    private fun authHeader(token: String): String {
+        return "Bearer ${SpotifyCredentials.cleanToken(token)}"
+    }
+
+    fun parseSpotifyErrorMessage(statusCode: Int, body: String): String {
+        try {
+            if (body.isNotBlank()) {
+                val json = JSONObject(body)
+                val errorObj = json.optJSONObject("error")
+                if (errorObj != null) {
+                    val msg = errorObj.optString("message")
+                    if (msg.isNotBlank()) {
+                        return when {
+                            statusCode == 401 && msg.contains("expired", ignoreCase = true) ->
+                                "Access token expired. Please generate a new token."
+                            statusCode == 401 && msg.contains("invalid", ignoreCase = true) ->
+                                "Invalid access token. Please check your token."
+                            statusCode == 403 ->
+                                "Permission denied: $msg. Ensure required scopes are granted."
+                            else -> "Spotify error ($statusCode): $msg"
+                        }
+                    }
+                }
+                val errorDesc = json.optString("error_description")
+                if (errorDesc.isNotBlank()) {
+                    return "Spotify error ($statusCode): $errorDesc"
+                }
+                val errorStr = json.optString("error")
+                if (errorStr.isNotBlank()) {
+                    return "Spotify error ($statusCode): $errorStr"
+                }
+            }
+        } catch (_: Exception) {}
+        return when (statusCode) {
+            400 -> "Bad Request (400). Please verify token format."
+            401 -> "Unauthorized (401). Access token is expired or invalid."
+            403 -> "Forbidden (403). Your account or token lacks required permissions."
+            404 -> "Not found (404)."
+            429 -> "Rate limit reached (429). Please wait a moment."
+            in 500..599 -> "Spotify server error ($statusCode). Please try again later."
+            else -> "Connection failed ($statusCode)."
+        }
+    }
+
     suspend fun testConnection(token: String): Result<String> = withContext(Dispatchers.IO) {
+        val cleaned = SpotifyCredentials.cleanToken(token)
+        if (cleaned.isBlank()) {
+            return@withContext Result.failure(Exception("Access token is empty."))
+        }
         try {
             val request = Request.Builder()
                 .url("$BASE_URL/me")
-                .header("Authorization", "Bearer $token")
+                .header("Authorization", authHeader(cleaned))
                 .get()
                 .build()
 
@@ -35,22 +84,30 @@ class SpotifyApiService(private val client: OkHttpClient) {
                 val body = response.body?.string() ?: ""
                 if (response.isSuccessful) {
                     val json = JSONObject(body)
-                    val displayName = json.optString("display_name", "Spotify User")
+                    val displayName = json.optString("display_name").takeIf { it.isNotBlank() }
+                        ?: json.optString("id").takeIf { it.isNotBlank() }
+                        ?: "Spotify User"
                     Result.success(displayName)
                 } else {
-                    Result.failure(Exception("Connection failed (${response.code}): $body"))
+                    val msg = parseSpotifyErrorMessage(response.code, body)
+                    Result.failure(Exception(msg))
                 }
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            val friendlyMsg = when (e) {
+                is java.net.UnknownHostException -> "Network error: Unable to reach Spotify. Check your internet connection."
+                is java.net.SocketTimeoutException -> "Network error: Connection to Spotify timed out."
+                else -> e.message ?: "Failed to connect to Spotify."
+            }
+            Result.failure(Exception(friendlyMsg, e))
         }
     }
 
-    suspend fun getPlaybackState(token: String): PlaybackState? = withContext(Dispatchers.IO) {
+    suspend fun getPlaybackState(token: String, isLiked: Boolean? = null): PlaybackState? = withContext(Dispatchers.IO) {
         try {
             val request = Request.Builder()
                 .url("$BASE_URL/me/player")
-                .header("Authorization", "Bearer $token")
+                .header("Authorization", authHeader(token))
                 .get()
                 .build()
 
@@ -81,10 +138,15 @@ class SpotifyApiService(private val client: OkHttpClient) {
             // Item (Track)
             val itemObj = json.optJSONObject("item")
             val track = if (itemObj != null) {
-                val id = itemObj.optString("id", "")
+                val rawId = itemObj.optString("id", "")
+                val uri = itemObj.optString("uri", "")
+                val id = if (rawId.isNotBlank()) {
+                    rawId.removePrefix("spotify:track:").trim()
+                } else if (uri.startsWith("spotify:track:")) {
+                    uri.removePrefix("spotify:track:").trim()
+                } else ""
                 val name = itemObj.optString("name", "Unknown Title")
                 val durationMs = itemObj.optLong("duration_ms", 0L)
-                val uri = itemObj.optString("uri", "")
 
                 // Artists
                 val artistsArr = itemObj.optJSONArray("artists")
@@ -108,7 +170,7 @@ class SpotifyApiService(private val client: OkHttpClient) {
                 } else null
 
                 // Check saved/liked state
-                val isLiked = if (id.isNotEmpty()) checkIsLiked(token, id) else false
+                val resolvedLiked = isLiked ?: if (id.isNotEmpty()) checkIsLiked(token, id) else false
 
                 Track(
                     id = id,
@@ -118,7 +180,7 @@ class SpotifyApiService(private val client: OkHttpClient) {
                     albumArtUrl = albumArtUrl,
                     durationMs = durationMs,
                     uri = uri,
-                    isLiked = isLiked
+                    isLiked = resolvedLiked
                 )
             } else null
 
@@ -148,7 +210,7 @@ class SpotifyApiService(private val client: OkHttpClient) {
         try {
             val request = Request.Builder()
                 .url("$BASE_URL/me/player/seek?position_ms=$positionMs")
-                .header("Authorization", "Bearer $token")
+                .header("Authorization", authHeader(token))
                 .put(EMPTY_BODY)
                 .build()
             client.newCall(request).execute().use { it.isSuccessful }
@@ -162,7 +224,7 @@ class SpotifyApiService(private val client: OkHttpClient) {
             val clamped = percent.coerceIn(0, 100)
             val request = Request.Builder()
                 .url("$BASE_URL/me/player/volume?volume_percent=$clamped")
-                .header("Authorization", "Bearer $token")
+                .header("Authorization", authHeader(token))
                 .put(EMPTY_BODY)
                 .build()
             client.newCall(request).execute().use { it.isSuccessful }
@@ -175,7 +237,7 @@ class SpotifyApiService(private val client: OkHttpClient) {
         try {
             val request = Request.Builder()
                 .url("$BASE_URL/me/player/shuffle?state=$state")
-                .header("Authorization", "Bearer $token")
+                .header("Authorization", authHeader(token))
                 .put(EMPTY_BODY)
                 .build()
             client.newCall(request).execute().use { it.isSuccessful }
@@ -188,7 +250,7 @@ class SpotifyApiService(private val client: OkHttpClient) {
         try {
             val request = Request.Builder()
                 .url("$BASE_URL/me/player/repeat?state=${mode.apiValue}")
-                .header("Authorization", "Bearer $token")
+                .header("Authorization", authHeader(token))
                 .put(EMPTY_BODY)
                 .build()
             client.newCall(request).execute().use { it.isSuccessful }
@@ -198,10 +260,12 @@ class SpotifyApiService(private val client: OkHttpClient) {
     }
 
     suspend fun checkIsLiked(token: String, trackId: String): Boolean = withContext(Dispatchers.IO) {
+        val cleanId = trackId.removePrefix("spotify:track:").trim()
+        if (cleanId.isBlank()) return@withContext false
         try {
             val request = Request.Builder()
-                .url("$BASE_URL/me/tracks/contains?ids=$trackId")
-                .header("Authorization", "Bearer $token")
+                .url("$BASE_URL/me/tracks/contains?ids=$cleanId")
+                .header("Authorization", authHeader(token))
                 .get()
                 .build()
             client.newCall(request).execute().use { response ->
@@ -216,21 +280,30 @@ class SpotifyApiService(private val client: OkHttpClient) {
     }
 
     suspend fun setLiked(token: String, trackId: String, isLiked: Boolean): Boolean = withContext(Dispatchers.IO) {
+        val cleanId = trackId.removePrefix("spotify:track:").trim()
+        if (cleanId.isBlank()) return@withContext false
         try {
+            val jsonPayload = JSONObject().apply {
+                put("ids", JSONArray().put(cleanId))
+            }
+            val requestBody = jsonPayload.toString().toRequestBody("application/json".toMediaType())
+
             val request = if (isLiked) {
                 Request.Builder()
-                    .url("$BASE_URL/me/tracks?ids=$trackId")
-                    .header("Authorization", "Bearer $token")
-                    .put(EMPTY_BODY)
+                    .url("$BASE_URL/me/tracks?ids=$cleanId")
+                    .header("Authorization", authHeader(token))
+                    .put(requestBody)
                     .build()
             } else {
                 Request.Builder()
-                    .url("$BASE_URL/me/tracks?ids=$trackId")
-                    .header("Authorization", "Bearer $token")
-                    .delete(EMPTY_BODY)
+                    .url("$BASE_URL/me/tracks?ids=$cleanId")
+                    .header("Authorization", authHeader(token))
+                    .delete(requestBody)
                     .build()
             }
-            client.newCall(request).execute().use { it.isSuccessful }
+            client.newCall(request).execute().use { response ->
+                response.isSuccessful || response.code == 200 || response.code == 201 || response.code == 204
+            }
         } catch (e: Exception) {
             false
         }
@@ -240,7 +313,7 @@ class SpotifyApiService(private val client: OkHttpClient) {
         try {
             val request = Request.Builder()
                 .url("$BASE_URL/me/player/devices")
-                .header("Authorization", "Bearer $token")
+                .header("Authorization", authHeader(token))
                 .get()
                 .build()
 
@@ -284,7 +357,7 @@ class SpotifyApiService(private val client: OkHttpClient) {
             val body = payload.toString().toRequestBody("application/json".toMediaType())
             val request = Request.Builder()
                 .url("$BASE_URL/me/player")
-                .header("Authorization", "Bearer $token")
+                .header("Authorization", authHeader(token))
                 .put(body)
                 .build()
 
@@ -319,7 +392,7 @@ class SpotifyApiService(private val client: OkHttpClient) {
             }
             val request = Request.Builder()
                 .url(urlBuilder.toString())
-                .header("Authorization", "Bearer $token")
+                .header("Authorization", authHeader(token))
                 .put(body)
                 .build()
 
@@ -334,7 +407,7 @@ class SpotifyApiService(private val client: OkHttpClient) {
             if (needRetry) {
                 val fallbackReq = Request.Builder()
                     .url("$BASE_URL/me/player/play")
-                    .header("Authorization", "Bearer $token")
+                    .header("Authorization", authHeader(token))
                     .put(body)
                     .build()
                 return@withContext client.newCall(fallbackReq).execute().use { fallbackResp ->
@@ -358,7 +431,7 @@ class SpotifyApiService(private val client: OkHttpClient) {
                 for (offset in listOf(0, 50)) {
                     val playlistsReq = Request.Builder()
                         .url("$BASE_URL/me/playlists?limit=50&offset=$offset")
-                        .header("Authorization", "Bearer $token")
+                        .header("Authorization", authHeader(token))
                         .get()
                         .build()
 
@@ -413,7 +486,7 @@ class SpotifyApiService(private val client: OkHttpClient) {
             try {
                 val req = Request.Builder()
                     .url("$BASE_URL/me/player/recently-played?limit=50")
-                    .header("Authorization", "Bearer $token")
+                    .header("Authorization", authHeader(token))
                     .get()
                     .build()
 
@@ -545,7 +618,7 @@ class SpotifyApiService(private val client: OkHttpClient) {
         try {
             val reqBuilder = Request.Builder()
                 .url("$BASE_URL/me/player/$endpoint")
-                .header("Authorization", "Bearer $token")
+                .header("Authorization", authHeader(token))
 
             val request = when (method) {
                 "PUT" -> reqBuilder.put(EMPTY_BODY).build()

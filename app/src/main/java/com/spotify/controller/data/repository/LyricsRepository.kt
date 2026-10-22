@@ -2,6 +2,7 @@ package com.spotify.controller.data.repository
 
 import com.spotify.controller.data.model.LyricLine
 import com.spotify.controller.data.model.Lyrics
+import com.spotify.controller.data.model.SpotifyCredentials
 import com.spotify.controller.data.model.Track
 import com.spotify.controller.data.remote.LrclibApiService
 import kotlinx.coroutines.Dispatchers
@@ -95,12 +96,13 @@ class LyricsRepository(
                 put("client", JSONObject().apply { put("version", "1.0.0") })
             }
 
+            val cleanToken = SpotifyCredentials.cleanToken(token)
             val request = Request.Builder()
                 .url("https://api.spicylyrics.org/query")
                 .header("Content-Type", "application/json")
                 .header("X-mode", "2")
                 .header("SpicyLyrics-Version", "1.0.0")
-                .header("SpicyLyrics-WebAuth", "Bearer $token")
+                .header("SpicyLyrics-WebAuth", "Bearer $cleanToken")
                 .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
                 .build()
 

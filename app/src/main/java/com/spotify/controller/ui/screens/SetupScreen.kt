@@ -305,9 +305,15 @@ fun SetupScreen(
                 // Button 1: Authorize via Spotify Login (OAuth PKCE)
                 Button(
                     onClick = {
-                        onSave(clientId, clientSecret, directToken)
-                        if (clientId.isNotBlank()) {
-                            onStartOAuth(clientId)
+                        val cleanId = clientId.trim()
+                        val cleanSecret = clientSecret.trim()
+                        val cleanDirect = SpotifyCredentials.cleanToken(directToken)
+                        clientId = cleanId
+                        clientSecret = cleanSecret
+                        directToken = cleanDirect
+                        onSave(cleanId, cleanSecret, cleanDirect)
+                        if (cleanId.isNotBlank()) {
+                            onStartOAuth(cleanId)
                         } else {
                             Toast.makeText(context, "Please enter your Spotify Client ID first", Toast.LENGTH_SHORT).show()
                         }
@@ -334,10 +340,19 @@ fun SetupScreen(
                             scope.launch {
                                 isTesting = true
                                 testStatus = null
-                                val result = onTestConnection(clientId, clientSecret, directToken)
-                                result.onSuccess { name ->
+                                val cleanId = clientId.trim()
+                                val cleanSecret = clientSecret.trim()
+                                val cleanDirect = SpotifyCredentials.cleanToken(directToken)
+                                clientId = cleanId
+                                clientSecret = cleanSecret
+                                directToken = cleanDirect
+
+                                val result = onTestConnection(cleanId, cleanSecret, cleanDirect)
+                                result.onSuccess { message ->
                                     testIsSuccess = true
-                                    testStatus = "Connected successfully as $name!"
+                                    testStatus = message
+                                    // Auto-save on successful test
+                                    onSave(cleanId, cleanSecret, cleanDirect)
                                 }.onFailure { err ->
                                     testIsSuccess = false
                                     testStatus = err.message ?: "Connection test failed."
@@ -362,7 +377,10 @@ fun SetupScreen(
                     // Button 3: Save & Close
                     OutlinedButton(
                         onClick = {
-                            onSave(clientId, clientSecret, directToken)
+                            val cleanId = clientId.trim()
+                            val cleanSecret = clientSecret.trim()
+                            val cleanDirect = SpotifyCredentials.cleanToken(directToken)
+                            onSave(cleanId, cleanSecret, cleanDirect)
                             onDismiss()
                         },
                         modifier = Modifier.weight(1f),

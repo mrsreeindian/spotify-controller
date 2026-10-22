@@ -3,7 +3,7 @@ package com.spotify.controller.data.remote
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.util.Base64
+import java.util.Base64
 import androidx.browser.customtabs.CustomTabsIntent
 import com.spotify.controller.data.model.SpotifyCredentials
 import com.spotify.controller.data.repository.CredentialsRepository
@@ -37,6 +37,25 @@ class SpotifyAuthManager(
             "playlist-read-private",
             "playlist-read-collaborative"
         ).joinToString(" ")
+
+        fun parseTokenEndpointError(statusCode: Int, body: String): String {
+            try {
+                if (body.isNotBlank()) {
+                    val json = JSONObject(body)
+                    val desc = json.optString("error_description")
+                    if (desc.isNotBlank()) {
+                        return when {
+                            desc.contains("client secret", ignoreCase = true) -> "Invalid Client Secret."
+                            desc.contains("client", ignoreCase = true) -> "Invalid Client ID."
+                            else -> desc
+                        }
+                    }
+                    val err = json.optString("error")
+                    if (err.isNotBlank()) return "Spotify Auth error: $err"
+                }
+            } catch (_: Exception) {}
+            return "Credentials verification failed ($statusCode)."
+        }
     }
 
     /**
@@ -48,7 +67,7 @@ class SpotifyAuthManager(
         val challenge = generateCodeChallenge(verifier)
 
         val authUri = Uri.parse(AUTH_ENDPOINT).buildUpon()
-            .appendQueryParameter("client_id", clientId)
+            .appendQueryParameter("client_id", clientId.trim())
             .appendQueryParameter("response_type", "code")
             .appendQueryParameter("redirect_uri", REDIRECT_URI)
             .appendQueryParameter("code_challenge_method", "S256")
@@ -77,11 +96,12 @@ class SpotifyAuthManager(
             val code = uri.getQueryParameter("code") ?: return@withContext Result.failure(Exception("No auth code in redirect"))
             val verifier = credentialsRepository.getCodeVerifier() ?: return@withContext Result.failure(Exception("Missing code verifier"))
 
+            val cleanClientId = clientId.trim()
             val formBuilder = FormBody.Builder()
                 .add("grant_type", "authorization_code")
                 .add("code", code)
                 .add("redirect_uri", REDIRECT_URI)
-                .add("client_id", clientId)
+                .add("client_id", cleanClientId)
                 .add("code_verifier", verifier)
 
             val requestBuilder = Request.Builder()
@@ -89,8 +109,9 @@ class SpotifyAuthManager(
                 .post(formBuilder.build())
 
             // Optional client secret for standard web app flow
-            if (!clientSecret.isNullOrBlank()) {
-                val basicAuth = Base64.encodeToString("$clientId:$clientSecret".toByteArray(), Base64.NO_WRAP)
+            val cleanSecret = clientSecret?.trim()
+            if (!cleanSecret.isNullOrBlank()) {
+                val basicAuth = Base64.getEncoder().encodeToString("$cleanClientId:$cleanSecret".toByteArray())
                 requestBuilder.header("Authorization", "Basic $basicAuth")
             }
 
@@ -99,12 +120,13 @@ class SpotifyAuthManager(
             }
 
             if (!isSuccess) {
-                return@withContext Result.failure(Exception("Token exchange failed ($statusCode): $body"))
+                val parsed = parseTokenEndpointError(statusCode, body)
+                return@withContext Result.failure(Exception("Token exchange failed ($statusCode): $parsed"))
             }
 
             val json = JSONObject(body)
-            val accessToken = json.getString("access_token")
-            val refreshToken = json.optString("refresh_token", "")
+            val accessToken = SpotifyCredentials.cleanToken(json.getString("access_token"))
+            val refreshToken = json.optString("refresh_token", "").trim()
             val expiresIn = json.getLong("expires_in")
 
             credentialsRepository.saveTokens(accessToken, refreshToken.takeIf { it.isNotEmpty() }, expiresIn)
@@ -115,35 +137,84 @@ class SpotifyAuthManager(
     }
 
     /**
+     * Verifies Developer App credentials directly with Spotify's token endpoint.
+     */
+    suspend fun testClientCredentials(clientId: String, clientSecret: String): Result<String> = withContext(Dispatchers.IO) {
+        val cleanId = clientId.trim()
+        val cleanSecret = clientSecret.trim()
+        if (cleanId.isBlank()) {
+            return@withContext Result.failure(Exception("Spotify Client ID is required."))
+        }
+        if (cleanSecret.isBlank()) {
+            return@withContext Result.failure(Exception("Client Secret is required to verify Developer App credentials."))
+        }
+
+        try {
+            val form = FormBody.Builder()
+                .add("grant_type", "client_credentials")
+                .build()
+
+            val basicAuth = Base64.getEncoder().encodeToString("$cleanId:$cleanSecret".toByteArray())
+            val request = Request.Builder()
+                .url(TOKEN_ENDPOINT)
+                .header("Authorization", "Basic $basicAuth")
+                .post(form)
+                .build()
+
+            okHttpClient.newCall(request).execute().use { response ->
+                val body = response.body?.string() ?: ""
+                if (response.isSuccessful) {
+                    Result.success("Developer App credentials verified! Tap 'Authorize with Spotify Login' to connect your account.")
+                } else {
+                    val parsed = parseTokenEndpointError(response.code, body)
+                    Result.failure(Exception(parsed))
+                }
+            }
+        } catch (e: Exception) {
+            val friendlyMsg = when (e) {
+                is java.net.UnknownHostException -> "Network error: Unable to reach Spotify. Check your internet connection."
+                is java.net.SocketTimeoutException -> "Network error: Connection to Spotify timed out."
+                else -> e.message ?: "Failed to verify credentials."
+            }
+            Result.failure(Exception(friendlyMsg, e))
+        }
+    }
+
+    /**
      * Refreshes access token if expired.
      */
     suspend fun refreshTokenIfNeeded(credentials: SpotifyCredentials): String? = withContext(Dispatchers.IO) {
-        if (credentials.directDevToken.isNotBlank()) {
-            return@withContext credentials.directDevToken
+        val directClean = SpotifyCredentials.cleanToken(credentials.directDevToken)
+        if (directClean.isNotBlank()) {
+            return@withContext directClean
         }
 
         // If current token is still valid (with 60-second buffer), use it
-        if (credentials.accessToken.isNotBlank() && System.currentTimeMillis() < (credentials.tokenExpiresAt - 60_000L)) {
-            return@withContext credentials.accessToken
+        val accessClean = SpotifyCredentials.cleanToken(credentials.accessToken)
+        if (accessClean.isNotBlank() && System.currentTimeMillis() < (credentials.tokenExpiresAt - 60_000L)) {
+            return@withContext accessClean
         }
 
-        if (credentials.refreshToken.isBlank() || credentials.clientId.isBlank()) {
+        val refreshClean = credentials.refreshToken.trim()
+        val clientClean = credentials.clientId.trim()
+        if (refreshClean.isBlank() || clientClean.isBlank()) {
             return@withContext null
         }
 
         try {
             val form = FormBody.Builder()
                 .add("grant_type", "refresh_token")
-                .add("refresh_token", credentials.refreshToken)
-                .add("client_id", credentials.clientId)
+                .add("refresh_token", refreshClean)
+                .add("client_id", clientClean)
                 .build()
 
             val requestBuilder = Request.Builder()
                 .url(TOKEN_ENDPOINT)
                 .post(form)
 
-            if (credentials.clientSecret.isNotBlank()) {
-                val basicAuth = Base64.encodeToString("${credentials.clientId}:${credentials.clientSecret}".toByteArray(), Base64.NO_WRAP)
+            val secretClean = credentials.clientSecret.trim()
+            if (secretClean.isNotBlank()) {
+                val basicAuth = Base64.getEncoder().encodeToString("$clientClean:$secretClean".toByteArray())
                 requestBuilder.header("Authorization", "Basic $basicAuth")
             }
 
@@ -156,8 +227,8 @@ class SpotifyAuthManager(
             }
 
             val json = JSONObject(body)
-            val newAccessToken = json.getString("access_token")
-            val newRefreshToken = json.optString("refresh_token", credentials.refreshToken)
+            val newAccessToken = SpotifyCredentials.cleanToken(json.getString("access_token"))
+            val newRefreshToken = json.optString("refresh_token", refreshClean).trim()
             val expiresIn = json.getLong("expires_in")
 
             credentialsRepository.saveTokens(newAccessToken, newRefreshToken, expiresIn)
@@ -170,12 +241,13 @@ class SpotifyAuthManager(
     private fun generateCodeVerifier(): String {
         val bytes = ByteArray(64)
         SecureRandom().nextBytes(bytes)
-        return Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
     }
 
     private fun generateCodeChallenge(verifier: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
         val hash = digest.digest(verifier.toByteArray(Charsets.US_ASCII))
-        return Base64.encodeToString(hash, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(hash)
     }
 }
+

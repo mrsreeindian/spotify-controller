@@ -306,9 +306,12 @@ class PlayerViewModel(
     }
 
     fun saveCredentials(clientId: String, clientSecret: String, directDevToken: String) {
+        val cleanToken = SpotifyCredentials.cleanToken(directDevToken)
+        val cleanId = clientId.trim()
+        val cleanSecret = clientSecret.trim()
         viewModelScope.launch {
-            credentialsRepository.saveClientCredentials(clientId, clientSecret, directDevToken)
-            if (directDevToken.isNotBlank()) {
+            credentialsRepository.saveClientCredentials(cleanId, cleanSecret, cleanToken)
+            if (cleanToken.isNotBlank()) {
                 spotifyRepository.pollPlaybackState()
             }
         }

@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.spotify.controller.data.model.RepeatMode
 import com.spotify.controller.ui.theme.LocalAlbumArtColors
+import com.spotify.controller.ui.theme.SpotifyGreen
 
 /**
  * Minimalist playback control bar with Material 3 tonal spot theming.
@@ -164,10 +165,8 @@ fun LikeButton(
     onLikeToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val albumColors = LocalAlbumArtColors.current
-
     val heartScale by animateFloatAsState(
-        targetValue = if (isLiked) 1.15f else 1.0f,
+        targetValue = if (isLiked) 1.2f else 1.0f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
@@ -177,25 +176,25 @@ fun LikeButton(
 
     val tintColor by animateColorAsState(
         targetValue = if (isLiked) {
-            albumColors.tonalPrimary
+            SpotifyGreen
         } else {
             Color.White.copy(alpha = 0.55f)
         },
-        animationSpec = tween(180),
+        animationSpec = tween(200),
         label = "heartColor"
     )
 
     IconButton(
         onClick = onLikeToggle,
         modifier = modifier
-            .size(36.dp)
+            .size(40.dp)
             .scale(heartScale)
     ) {
         Icon(
             imageVector = if (isLiked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-            contentDescription = if (isLiked) "Unlike" else "Like",
+            contentDescription = if (isLiked) "Remove from Liked Songs" else "Save to Liked Songs",
             tint = tintColor,
-            modifier = Modifier.size(22.dp)
+            modifier = Modifier.size(24.dp)
         )
     }
 }
